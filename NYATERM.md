@@ -13,10 +13,11 @@ changes that could not be made on the NyaTerm side.
 
 ## Patches
 
-1. `fix(tab_bar): let segmented tabs fill the bar` — for
-   `TabVariant::Segmented` the inner container takes the full width and each
-   wrapper becomes `flex_1` with `min_w_0`, so segments divide the bar evenly
-   instead of hugging their labels. Other variants are unchanged.
+1. `fix(tab_bar): let segmented tabs fill the bar` — flex sizing set on each
+   `Tab` is propagated to its layout wrapper, so segmented tabs using
+   `Tab::flex_1()` divide the bar evenly instead of hugging their labels, while
+   `Tab::flex_none()` keeps natural width for scrollable tab strips. Other
+   variants preserve their requested flex behavior.
 2. `feat(scrollbar): reveal a hover scrollbar from anywhere in the viewport` —
    `ScrollbarMode::Hover` revealed the bar only from inside the track bounds, so
    a hidden bar had to be aimed at blind. Adds
