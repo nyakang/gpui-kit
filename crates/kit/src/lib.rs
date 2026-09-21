@@ -8,12 +8,13 @@
 //! | Path            | Crate             | Feature          |
 //! | --------------- | ----------------- | ---------------- |
 //! | `gpui_kit::*`   | `gpui`            | always           |
-//! | [`platform`]    | `gpui_platform`   | always           |
+//! | `platform`      | `gpui_platform`   | desktop / web    |
 //! | [`base`]        | `gpui-base`       | always           |
 //! | [`component`]   | `gpui-component`  | `component` (on) |
 //! | [`assets`]      | `gpui-kit-assets` | `assets` (on)    |
 //!
-//! [`application`] opens the platform and [`init`] initializes the enabled
+//! On desktop and web, `application` opens the platform. Mobile applications
+//! supply their backend to `Application::with_platform`. [`init`] initializes the enabled
 //! layers:
 //!
 //! ```no_run
@@ -79,21 +80,35 @@ macro_rules! actions {
     };
 }
 
-// Everything in GPUI itself, so `use gpui_kit::*;` is enough to get started.
-// With the `test-support` feature the glob also carries GPUI's `test`
-// attribute, so a test module imports explicitly (or adds
-// `use core::prelude::v1::test;`) to keep the built-in `#[test]`.
+// Public facade decision — 2026-09-08:
+// GPUI Kit is the application-facing entry point. Users should depend on and
+// import gpui-kit without needing to know which GPUI crates implement it.
+// Keep GPUI APIs available through the Kit root and preserve the published
+// #[gpui_kit::test] macro. Do not replace it with Rust's built-in #[test].
+// A future switch to official GPUI crates is an internal dependency migration,
+// not a reason to steer Kit users toward gpui:: paths or require import changes.
+// Keep the existing gpui namespace re-export hidden for source compatibility;
+// it is not the recommended application API.
+//
+// With test-support, the glob below includes GPUI's test macro. Test modules
+// should import their Kit types explicitly to avoid shadowing Rust's #[test].
 pub use ::gpui::*;
 
-// The crate name, so code that keeps `gpui::…` paths still resolves after
-// `use gpui_kit::*;`. `gpui_kit::*` is the documented way.
 #[doc(hidden)]
 pub use ::gpui;
 
+/// UI integration testing: render real components in headless windows, dispatch
+/// pointer and keyboard events, and assert state, focus, layout and callbacks.
+/// Run tests with `#[gpui_kit::test]`; use this module to interact with their UI.
+#[cfg(feature = "test-support")]
+pub mod test;
+
 pub use ::gpui_base as base;
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 pub use ::gpui_platform as platform;
 #[cfg(target_family = "wasm")]
 pub use ::gpui_web as web;
+pub use gpui_base::is_mobile;
 
 /// The styled component library.
 ///
@@ -129,6 +144,8 @@ pub use ::gpui_component as component;
 #[cfg(feature = "assets")]
 pub use ::gpui_kit_assets as assets;
 
+// Mobile applications provide their platform with `Application::with_platform`.
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 pub use ::gpui_platform::application;
 
 /// Initializes every enabled layer. Call it once, before using anything else.
@@ -142,3 +159,6 @@ pub fn init(cx: &mut App) {
     #[cfg(not(feature = "component"))]
     gpui_base::init(cx);
 }
+
+/// Fluent UI test observation, inert unless `test-support` is enabled.
+pub use gpui_base::TestSupportExt;

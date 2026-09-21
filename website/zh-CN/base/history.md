@@ -1,10 +1,10 @@
 ---
-title: History 与 Undo History
+title: History
 description: 用于应用状态的浏览器式导航轨迹和分组 undo/redo 事务。
 order: 7
 ---
 
-# History 与 Undo History
+# History
 
 `History<T>` 与 `UndoHistory<T>` 分别保存两种不同的应用状态。两者都不持有 GPUI 状态，且都由调用方把返回的值应用到模型；但它们的操作含义不同：
 
@@ -25,7 +25,7 @@ use gpui_kit::base::{History, UndoHistory};
 - 当每个条目表示一项可逆改动，并且 undo 或 redo 需要返回一次用户事务中的全部改动时，使用 `UndoHistory<T>`。
 - 当分组依赖比时间或显式边界更丰富的领域语义时，使用领域专用的管理器。例如 Input 使用私有事务管理器来理解输入、删除、选择区和 IME 组合输入。
 
-在 gpui-component 内部，`NavStack` 使用 `History<NavEntry>` 进行页面导航；Dock 的 tiles canvas 使用 `UndoHistory<TileChange>` 回退分组的移动和缩放改动；Input 则有意保留其专用的私有 undo manager。
+在 gpui-component 内部，`NavStack` 使用 `History<NavEntry>` 进行页面导航；`UndoHistory` 供任何需要分组撤销 / 重做的状态使用；Input 则有意保留其专用的私有 undo manager。
 
 ## `History`：导航轨迹
 

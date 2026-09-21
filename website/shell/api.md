@@ -36,16 +36,20 @@ API shape follows the Rust original: a method on `App` is a method on `cx`, a me
 
 ### Elements
 
-| Name          | What it is                                                                                           |
-| ------------- | ---------------------------------------------------------------------------------------------------- |
-| `Element`     | A render-pass-owned description built by chaining methods                                            |
-| `div()`       | An element with no layout of its own                                                                 |
-| `svg(path)`   | A vector image from the application root, tinted by the surrounding text color                       |
-| `image(path)` | A full-color image from the application root, colors preserved                                       |
-| `PathBuilder` | The GPUI path-builder type and its factory: `fill()` and `stroke(width)` each return a `PathBuilder` |
-| `Background`  | `solid`, `stop`, `linear_gradient`, `pattern_slash`, `checkerboard`                                  |
+| Name              | What it is                                                                                           |
+| ----------------- | ---------------------------------------------------------------------------------------------------- |
+| `Element`         | A render-pass-owned description built by chaining methods                                            |
+| `div()`           | An element with no layout of its own                                                                 |
+| `svg(path)`       | A vector image from the application root, tinted by the surrounding text color                       |
+| `image(path)`     | A full-color image from the application root, colors preserved                                       |
+| `list(…)`         | GPUI's lazy list: rows of any height, measured as they are drawn                                     |
+| `uniform_list(…)` | GPUI's uniform list: one row measured, every row placed by it                                        |
+| `PathBuilder`     | The GPUI path-builder type and its factory: `fill()` and `stroke(width)` each return a `PathBuilder` |
+| `Background`      | `solid`, `stop`, `linear_gradient`, `pattern_slash`, `checkerboard`                                  |
 
 `PathBuilder.fill()` and `.stroke(width)` return a handle that chains `move_to`, `line_to`, `curve_to`, `cubic_bezier_to`, `arc_to`, `add_polygon`, `close` and `dash_array`, and ends in `build()`. Paint the result with `window.paint_path(path, background)` — the one element constructor reached through an object, because the thing it mirrors is a method on the window.
+
+`list` and `uniform_list` are GPUI's own lazy lists and take `(id, item_count, get_key, render)`, the shape of `gpui-base`'s `v_virtual_list` without its `item_sizes`: no sizes, because GPUI measures the items itself. `uniform_list` measures one row and places every row by it, so `render(range, cx)` returns one element per item in the range as a virtual list's does. `list` measures each item it draws and keeps the sizes, so `render(index, cx)` returns one element for one item, and rows — or panels — of unequal height need not say how tall they are. Both draw only what is on screen plus a short band past the fold, scroll themselves, and pair with a `Scrollbar` by name; neither takes a `VirtualListScrollHandle`.
 
 A string is an element too, exactly as `&str` implements `IntoElement` in GPUI: `.child("hello")` is how text is written, and the style comes from the element holding it.
 
@@ -454,9 +458,7 @@ Reading the theme is `cx.theme()`. `set_theme` remains in `gpui-base` because th
 | `DockPanel`             | One panel as `panels()` reports it: `id`, `name`, `placement`, `node`, `index`, `active`, and its three flags |
 | `DockGroup` / `DockTab` | A tab group and one of its tabs, as `tab_bar` and `empty_group` are given them                                |
 | `DockRegion`            | One dock, as the `dock` handler is given it                                                                   |
-| `DockTile`              | One tile, with already-resolved bounds                                                                        |
 | `DockDrop`              | Where a dragged panel would land                                                                              |
-| `TileResizeSide`        | `"left"`, `"right"`, `"top"`, `"bottom"` or `"bottom_right"`                                                  |
 
 ### Composition patterns
 
@@ -721,15 +723,10 @@ handler was given as its first argument, and they belong on a `div`, an
 | `drop_tab(group, index?)`      | drop  | Accepts a dragged panel here; no index appends    |
 | `toggle_dock(dock)`            | click | Opens or closes the dock                          |
 | `resize_dock(dock)`            | drag  | Drags the dock's edge; base clamps every position |
-| `move_tile(tile)`              | drag  | Moves the tile around its canvas                  |
-| `resize_tile(tile, side)`      | drag  | Drags one edge or corner                          |
-| `raise_tile(tile)`             | press | Brings the tile above the others                  |
-| `toggle_tile_zoom(tile)`       | click | Zooms the tile to fill its dock                   |
-| `close_tile(tile)`             | click | Closes the tile                                   |
 
 ### Dock chrome
 
-Six handlers, all optional, and legal only on a `dock_area(...)`. Each is first
+Four handlers, all optional, and legal only on a `dock_area(...)`. Each is first
 called from inside GPUI's layout pass and given base's resolved state. Its
 description is cached until that state or handler changes.
 
@@ -739,8 +736,6 @@ description is cached until that state or handler changes.
 | `empty_group(handler)`         | What a group with no displayed panel shows                            |
 | `drop_indicator(handler)`      | Where a dragged panel would land                                      |
 | `dock(handler)`                | One dock's frame around its content; place `dock_content()` inside it |
-| `tile_drag_bar(handler)`       | The strip a tile is dragged by                                        |
-| `tile_resize_handles(handler)` | A tile's resize affordances                                           |
 
 ### Motion
 

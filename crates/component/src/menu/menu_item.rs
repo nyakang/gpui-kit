@@ -4,6 +4,7 @@ use gpui::{
     ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement as _,
     StyleRefinement, Styled, Window, prelude::FluentBuilder as _,
 };
+use gpui_base::TestSupportExt as _;
 use smallvec::SmallVec;
 
 #[derive(IntoElement)]
@@ -103,6 +104,7 @@ impl RenderOnce for MenuItemElement {
         let disabled_opacity = self.disabled_opacity.filter(|_| disabled);
         h_flex()
             .id(self.id)
+            .test_support()
             .role(Role::MenuItem)
             .when_some(self.aria_label, |this, label| this.aria_label(label))
             .aria_selected(self.selected)

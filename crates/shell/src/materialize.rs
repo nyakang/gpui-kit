@@ -10,13 +10,13 @@
 //! but only to dispatch events: no path through this module calls into the
 //! script while an element is being built.
 //!
-//! # The one exception: `VirtualList`
+//! # The one exception: the lazy lists
 //!
-//! A virtualized list is the single component whose description is not the
+//! A lazy list is the single kind of component whose description is not the
 //! whole of what it draws. Its rows are produced by a script callback that
 //! GPUI runs from *inside* layout and prepaint — twice per frame, once to
-//! measure and once to place — so a frame that contains a virtual list does
-//! enter the VM, once per list, no matter what changed.
+//! measure and once to place — so a frame that contains one does enter the VM,
+//! no matter what changed.
 //!
 //! That is not a leak in the design; it is the trade the design was for. The
 //! alternative is describing every row up front, which is exactly the cost
@@ -24,6 +24,16 @@
 //! can be seen. What the exception buys is that the VM is entered for the
 //! *visible window* rather than for the collection, so the script cost of a
 //! ten-thousand-row list is the script cost of a twenty-row one.
+//!
+//! How often it is entered depends on which list, because that is set by the
+//! GPUI API each one wraps. [`Component::VirtualList`] and `uniform_list` take
+//! a renderer over a range, so one frame is one call however many rows are on
+//! screen. `list` — the one that measures each item rather than placing them
+//! all by one — takes a renderer over a single index, so one frame is *one
+//! call per visible row*, plus the rows in its overdraw band. Both are bounded
+//! by the viewport rather than by the collection, which is the property that
+//! matters; but a `list` of twenty visible rows costs twenty crossings where a
+//! virtual list costs one, and that is the price of not stating heights.
 //!
 //! Three things confine it, and they are worth naming because each is what
 //! stops the exception from spreading:
@@ -128,6 +138,7 @@ use gpui_base::{
 mod components;
 
 use crate::{
+    capability::is_openable_url,
     engine::ShellRuntime,
     scroll::Scrollable,
     snapshot::RenderSnapshot,
@@ -323,6 +334,8 @@ struct Behavior {
     href: Option<SharedString>,
     on_click: Option<CallbackId>,
     on_change: Option<CallbackId>,
+    token: Option<CallbackId>,
+    on_token_click: Option<CallbackId>,
     on_mouse_move: Option<CallbackId>,
     on_hover: Option<CallbackId>,
     /// Reports a key press that reached this element.
@@ -436,8 +449,7 @@ struct Behavior {
     /// The dock commands a chrome element carries — what base is asked to do
     /// when it is clicked or dragged.
     ///
-    /// A list, because one element often carries two: a tile's drag bar both
-    /// raises the tile and moves it, and a tab both selects and drags.
+    /// A list, because one element can carry two: a tab both selects and drags.
     dock_commands: SmallVec<[crate::dock::DockAction; 2]>,
     /// Which script handler draws each piece of a `dock_area`'s chrome.
     ///
@@ -505,7 +517,6 @@ struct Behavior {
     /// component's own default, and the two differ: a popover anchors top-left,
     /// a hover card top-center.
     anchor: Option<gpui::Anchor>,
-    continuous: Option<bool>,
     frame_budget: Option<Duration>,
     /// The pointer button that opens a `Popover`.
     mouse_button: Option<MouseButton>,
@@ -670,6 +681,18 @@ pub fn materialize(
             cx,
         )
     })
+}
+
+/// Builds the same eager element tree as a view render, preserving registered
+/// component failures for a source check instead of only showing a fallback.
+/// Deferred slots, nested views, and layout callbacks are not driven here.
+pub(crate) fn try_materialize(
+    runtime: &Rc<ShellRuntime>,
+    snapshot: &RenderSnapshot,
+    window: &mut Window,
+    cx: &mut App,
+) -> anyhow::Result<AnyElement> {
+    with_error_frame(|| materialize(runtime, snapshot, window, cx))
 }
 
 /// Materializes one described subtree from an arena that is not a snapshot's.
@@ -1053,6 +1076,20 @@ fn materialize_component(
                 view = view.on_link_click(move |url, _event, window, cx| {
                     route.emit(crate::HostValue::from(url.to_string()), window, cx);
                 });
+            } else {
+                view = view.on_link_click(|url, event, _, cx| {
+                    // Preserve Base's activation behavior, but apply Shell's URL rules.
+                    let activate = match event {
+                        gpui::ClickEvent::Mouse(click) => {
+                            matches!(click.up.button, MouseButton::Left | MouseButton::Middle)
+                        }
+                        gpui::ClickEvent::Keyboard(_) => true,
+                        gpui::ClickEvent::Touch(click) => !click.long_press,
+                    };
+                    if activate && is_openable_url(url) {
+                        cx.open_url(url);
+                    }
+                });
             }
             Styled::style(&mut view).refine(&refinement);
             view.into_any_element()
@@ -1422,6 +1459,9 @@ fn materialize_component(
         Component::VirtualList(spec) => components::virtual_list::virtual_list(
             runtime, &spec, refinement, behavior, states, children, window, cx,
         ),
+        Component::List(spec) => components::list::list(
+            runtime, &spec, refinement, behavior, states, children, window, cx,
+        ),
         Component::Input(handle) => {
             // An input's focus belongs to its `InputState`, which is what
             // `on_mouse_down` below hands it. A second handle on the frame
@@ -1461,7 +1501,23 @@ fn materialize_component(
             frame.extend(children);
             let frame = with_hover(frame, &states);
             let frame = with_active_and_focus(frame, &states);
-            frame.child(Input::new(&state)).into_any_element()
+            let callbacks = crate::InlineTokenCallbacks::new(
+                &state,
+                behavior
+                    .token
+                    .map(|id| crate::ComponentElementCallback::from_runtime(runtime, id)),
+                behavior
+                    .on_token_click
+                    .map(|id| crate::ComponentCallback::from_runtime(runtime, id)),
+            );
+            let input = callbacks.apply(
+                Input::new(&state),
+                |input, render| input.token(move |token, window, cx| render(token, window, cx)),
+                |input, listen| {
+                    input.on_token_click(move |event, window, cx| listen(event, window, cx))
+                },
+            );
+            frame.child(input).into_any_element()
         }
         Component::OtpInput(handle) => components::otp_input::otp_input(
             runtime, handle, refinement, behavior, states, children, window, cx,
@@ -2288,6 +2344,7 @@ fn motion_element_id(
         // key its scroll position is filed under, so motion has to follow the
         // same name rather than a tree position.
         Component::VirtualList(spec) => gpui::ElementId::Name(spec.id().to_owned().into()),
+        Component::List(spec) => gpui::ElementId::Name(spec.id().to_owned().into()),
         // The group's id is also where base files the panel sizes, so motion
         // has to key off the same name rather than a tree position.
         Component::Resizable(id, _) => gpui::ElementId::Name(id.clone().into()),
@@ -2455,6 +2512,8 @@ pub(in crate::materialize) fn resolve_ops(
                 "on_scroll_wheel" => behavior.on_scroll_wheel = Some(*id),
                 "on_resize" => behavior.on_resize = Some(*id),
                 "on_change" => behavior.on_change = Some(*id),
+                "token" => behavior.token = Some(*id),
+                "on_token_click" => behavior.on_token_click = Some(*id),
                 "on_step" => behavior.on_step = Some(*id),
                 "on_open_change" => behavior.on_open_change = Some(*id),
                 "on_confirm" => behavior.on_confirm = Some(*id),
@@ -2465,8 +2524,6 @@ pub(in crate::materialize) fn resolve_ops(
                 "empty_group" => behavior.dock_chrome.empty_group = Some(*id),
                 "drop_indicator" => behavior.dock_chrome.drop_indicator = Some(*id),
                 "dock" => behavior.dock_chrome.dock = Some(*id),
-                "tile_drag_bar" => behavior.dock_chrome.tile_drag_bar = Some(*id),
-                "tile_resize_handles" => behavior.dock_chrome.tile_resize_handles = Some(*id),
                 other => tracing::error!("unhandled callback `{other}` reached materialize"),
             },
             SpecOp::ActionCallback(id, callback) => {
@@ -2793,8 +2850,7 @@ fn warn_unsupported(component: &str, methods: &[(&str, bool)]) {
 /// Every one of them takes the dock handle first, because a command is resolved
 /// against the contexts of *that* area — the script passes the container object
 /// it was handed, and the prelude unpacks the handle out of it. What follows
-/// names the container inside the area: a group's node, a dock's placement, or
-/// a tile's panel.
+/// names the container inside the area: a group's node or a dock's placement.
 fn is_dock_command(name: &str) -> bool {
     matches!(
         name,
@@ -2805,11 +2861,6 @@ fn is_dock_command(name: &str) -> bool {
             | "drop_tab"
             | "toggle_dock"
             | "resize_dock"
-            | "move_tile"
-            | "resize_tile"
-            | "raise_tile"
-            | "toggle_tile_zoom"
-            | "close_tile"
     )
 }
 
@@ -2832,7 +2883,6 @@ fn dock_action(name: &str, args: &[Bridged]) -> Option<crate::dock::DockAction> 
 
     let dock = handle(0)?;
     let node = || handle(1);
-    let panel = || handle(1);
 
     let command = match name {
         "select_tab" => DockCommand::SelectTab {
@@ -2860,14 +2910,6 @@ fn dock_action(name: &str, args: &[Bridged]) -> Option<crate::dock::DockAction> 
         "resize_dock" => DockCommand::ResizeDock {
             placement: dock_placement(text(1)?)?,
         },
-        "move_tile" => DockCommand::MoveTile { panel: panel()? },
-        "resize_tile" => DockCommand::ResizeTile {
-            panel: panel()?,
-            side: resize_side(text(2)?)?,
-        },
-        "raise_tile" => DockCommand::RaiseTile { panel: panel()? },
-        "toggle_tile_zoom" => DockCommand::ToggleTileZoom { panel: panel()? },
-        "close_tile" => DockCommand::CloseTile { panel: panel()? },
         _ => return None,
     };
 
@@ -2885,25 +2927,6 @@ pub(crate) fn dock_placement(name: &str) -> Option<gpui_base::dock::DockPlacemen
         _ => {
             tracing::error!(
                 "`{name}` is not a dock placement; expected \"center\", \"left\", \"right\" or \"bottom\""
-            );
-            None
-        }
-    }
-}
-
-/// Which edge or corner of a tile a resize handle pulls.
-fn resize_side(name: &str) -> Option<gpui_base::dock::ResizeSide> {
-    use gpui_base::dock::ResizeSide;
-    match name {
-        "left" => Some(ResizeSide::Left),
-        "right" => Some(ResizeSide::Right),
-        "top" => Some(ResizeSide::Top),
-        "bottom" => Some(ResizeSide::Bottom),
-        "bottom_right" => Some(ResizeSide::BottomRight),
-        _ => {
-            tracing::error!(
-                "`{name}` is not a tile resize side; expected \"left\", \"right\", \"top\", \
-                 \"bottom\" or \"bottom_right\""
             );
             None
         }
@@ -3116,7 +3139,6 @@ fn apply_behavior(behavior: &mut Behavior, name: &str, args: &[Bridged]) {
                 .and_then(|value| value.as_str().ok())
                 .and_then(|value| anchor_from_name(value));
         }
-        "continuous" => behavior.continuous = Some(flag.unwrap_or(true)),
         "frame_budget" => behavior.frame_budget = milliseconds(args),
         "mouse_button" => {
             behavior.mouse_button =

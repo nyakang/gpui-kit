@@ -94,6 +94,69 @@
     },
     {
       "source": "ui",
+      "name": "carousel",
+      "classification": "component",
+      "registration": {
+        "status": "registered",
+        "descriptor": "Carousel",
+        "exports": [
+          "Carousel"
+        ],
+        "states": [
+          {
+            "export": "CarouselState",
+            "kind": "CarouselState",
+            "role": "retained-selection-and-gesture-state"
+          }
+        ],
+        "related": [
+          {
+            "descriptor": "CarouselContent",
+            "exports": [
+              "CarouselContent"
+            ],
+            "role": "typed-viewport"
+          },
+          {
+            "descriptor": "CarouselItem",
+            "exports": [
+              "CarouselItem"
+            ],
+            "role": "typed-slide"
+          },
+          {
+            "descriptor": "CarouselPrevious",
+            "exports": [
+              "CarouselPrevious"
+            ],
+            "role": "navigation-control"
+          },
+          {
+            "descriptor": "CarouselNext",
+            "exports": [
+              "CarouselNext"
+            ],
+            "role": "navigation-control"
+          },
+          {
+            "descriptor": "CarouselPagination",
+            "exports": [
+              "CarouselPagination"
+            ],
+            "role": "typed-pagination-container"
+          },
+          {
+            "descriptor": "CarouselPaginationItem",
+            "exports": [
+              "CarouselPaginationItem"
+            ],
+            "role": "typed-pagination-control"
+          }
+        ]
+      }
+    },
+    {
+      "source": "ui",
       "name": "chart",
       "classification": "component",
       "registration": {
@@ -285,6 +348,55 @@
     },
     {
       "source": "ui",
+      "name": "empty",
+      "classification": "component",
+      "registration": {
+        "status": "registered",
+        "descriptor": "Empty",
+        "exports": [
+          "Empty"
+        ],
+        "related": [
+          {
+            "descriptor": "EmptyHeader",
+            "exports": [
+              "EmptyHeader"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "EmptyMedia",
+            "exports": [
+              "EmptyMedia"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "EmptyTitle",
+            "exports": [
+              "EmptyTitle"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "EmptyDescription",
+            "exports": [
+              "EmptyDescription"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "EmptyContent",
+            "exports": [
+              "EmptyContent"
+            ],
+            "role": "named-slot-part"
+          }
+        ]
+      }
+    },
+    {
+      "source": "ui",
       "name": "form",
       "classification": "component",
       "registration": {
@@ -351,6 +463,50 @@
         "descriptor": "Input",
         "exports": [
           "Input"
+        ],
+        "related": [
+          {
+            "descriptor": "InputGroup",
+            "exports": [
+              "InputGroup"
+            ],
+            "role": "companion-control"
+          },
+          {
+            "descriptor": "InputGroupAddon",
+            "exports": [
+              "InputGroupAddon"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "InputGroupButton",
+            "exports": [
+              "InputGroupButton"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "InputGroupInput",
+            "exports": [
+              "InputGroupInput"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "InputGroupTextarea",
+            "exports": [
+              "InputGroupTextarea"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "InputGroupText",
+            "exports": [
+              "InputGroupText"
+            ],
+            "role": "named-slot-part"
+          }
         ],
         "states": [
           {
@@ -524,6 +680,41 @@
         "descriptor": "Progress",
         "exports": [
           "Progress"
+        ]
+      }
+    },
+    {
+      "source": "ui",
+      "name": "questionnaire",
+      "classification": "component",
+      "registration": {
+        "status": "registered",
+        "descriptor": "Questionnaire",
+        "exports": [
+          "Questionnaire"
+        ],
+        "related": [
+          {
+            "descriptor": "QuestionnaireItem",
+            "exports": [
+              "QuestionnaireItem"
+            ],
+            "role": "typed-item"
+          },
+          {
+            "descriptor": "QuestionnaireChoice",
+            "exports": [
+              "QuestionnaireChoice"
+            ],
+            "role": "typed-item"
+          },
+          {
+            "descriptor": "QuestionnaireInput",
+            "exports": [
+              "QuestionnaireInput"
+            ],
+            "role": "typed-item"
+          }
         ]
       }
     },
@@ -1084,6 +1275,69 @@
     },
     {
       "source": "story",
+      "name": "carousel",
+      "classification": "component",
+      "registration": {
+        "status": "registered",
+        "descriptor": "Carousel",
+        "exports": [
+          "Carousel"
+        ],
+        "states": [
+          {
+            "export": "CarouselState",
+            "kind": "CarouselState",
+            "role": "retained-selection-and-gesture-state"
+          }
+        ],
+        "related": [
+          {
+            "descriptor": "CarouselContent",
+            "exports": [
+              "CarouselContent"
+            ],
+            "role": "typed-viewport"
+          },
+          {
+            "descriptor": "CarouselItem",
+            "exports": [
+              "CarouselItem"
+            ],
+            "role": "typed-slide"
+          },
+          {
+            "descriptor": "CarouselPrevious",
+            "exports": [
+              "CarouselPrevious"
+            ],
+            "role": "navigation-control"
+          },
+          {
+            "descriptor": "CarouselNext",
+            "exports": [
+              "CarouselNext"
+            ],
+            "role": "navigation-control"
+          },
+          {
+            "descriptor": "CarouselPagination",
+            "exports": [
+              "CarouselPagination"
+            ],
+            "role": "typed-pagination-container"
+          },
+          {
+            "descriptor": "CarouselPaginationItem",
+            "exports": [
+              "CarouselPaginationItem"
+            ],
+            "role": "typed-pagination-control"
+          }
+        ]
+      }
+    },
+    {
+      "source": "story",
       "name": "chart",
       "classification": "component",
       "registration": {
@@ -1353,6 +1607,55 @@
     },
     {
       "source": "story",
+      "name": "empty",
+      "classification": "component",
+      "registration": {
+        "status": "registered",
+        "descriptor": "Empty",
+        "exports": [
+          "Empty"
+        ],
+        "related": [
+          {
+            "descriptor": "EmptyHeader",
+            "exports": [
+              "EmptyHeader"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "EmptyMedia",
+            "exports": [
+              "EmptyMedia"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "EmptyTitle",
+            "exports": [
+              "EmptyTitle"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "EmptyDescription",
+            "exports": [
+              "EmptyDescription"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "EmptyContent",
+            "exports": [
+              "EmptyContent"
+            ],
+            "role": "named-slot-part"
+          }
+        ]
+      }
+    },
+    {
+      "source": "story",
       "name": "form",
       "classification": "component",
       "registration": {
@@ -1419,6 +1722,67 @@
         "descriptor": "Image",
         "exports": [
           "Image"
+        ]
+      }
+    },
+    {
+      "source": "story",
+      "name": "input_group",
+      "classification": "component",
+      "registration": {
+        "status": "registered",
+        "descriptor": "InputGroup",
+        "exports": [
+          "InputGroup"
+        ],
+        "related": [
+          {
+            "descriptor": "InputGroupAddon",
+            "exports": [
+              "InputGroupAddon"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "InputGroupButton",
+            "exports": [
+              "InputGroupButton"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "InputGroupInput",
+            "exports": [
+              "InputGroupInput"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "InputGroupTextarea",
+            "exports": [
+              "InputGroupTextarea"
+            ],
+            "role": "named-slot-part"
+          },
+          {
+            "descriptor": "InputGroupText",
+            "exports": [
+              "InputGroupText"
+            ],
+            "role": "named-slot-part"
+          }
+        ],
+        "states": [
+          {
+            "export": "InputState",
+            "kind": "InputState",
+            "role": "retained-single-line-state"
+          },
+          {
+            "export": "TextareaState",
+            "kind": "TextareaState",
+            "role": "retained-multi-line-state"
+          }
         ]
       }
     },
@@ -1624,6 +1988,41 @@
         "descriptor": "Progress",
         "exports": [
           "Progress"
+        ]
+      }
+    },
+    {
+      "source": "story",
+      "name": "questionnaire",
+      "classification": "component",
+      "registration": {
+        "status": "registered",
+        "descriptor": "Questionnaire",
+        "exports": [
+          "Questionnaire"
+        ],
+        "related": [
+          {
+            "descriptor": "QuestionnaireItem",
+            "exports": [
+              "QuestionnaireItem"
+            ],
+            "role": "typed-item"
+          },
+          {
+            "descriptor": "QuestionnaireChoice",
+            "exports": [
+              "QuestionnaireChoice"
+            ],
+            "role": "typed-item"
+          },
+          {
+            "descriptor": "QuestionnaireInput",
+            "exports": [
+              "QuestionnaireInput"
+            ],
+            "role": "typed-item"
+          }
         ]
       }
     },

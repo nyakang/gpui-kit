@@ -1,10 +1,10 @@
 ---
-title: History and Undo History
+title: History
 description: Browser-style navigation trails and grouped undo/redo transactions for application state.
 order: 7
 ---
 
-# History and Undo History
+# History
 
 `History<T>` and `UndoHistory<T>` keep two different kinds of application state. Both are independent of GPUI and leave applying a returned value to the caller, but their operations intentionally have different meanings:
 
@@ -32,9 +32,8 @@ commands that operate on it:
   composition.
 
 Within gpui-component, `NavStack` uses `History<NavEntry>` for page navigation,
-while Dock's tiles canvas uses `UndoHistory<TileChange>` to reverse grouped
-move and resize changes. Input deliberately keeps its specialized private undo
-manager.
+and `UndoHistory` is available to any state that wants grouped undo and redo.
+Input deliberately keeps its specialized private undo manager.
 
 ## `History`: a navigation trail
 

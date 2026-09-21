@@ -2,16 +2,18 @@
 //! rolling frame time chart, and this process' GPU, CPU and memory usage.
 //!
 //! Frame data comes from GPUI's own frame trace
-//! ([`gpui::FrameTimingCollector`]). The rate and the interval count frames
-//! *presented*, stamped with their own present time, so they agree with the
-//! platform's overlay (Metal's HUD counts the same drawables); the frame cost
-//! is what the framework actually spent in `Window::draw`, rather than an
-//! approximation measured from the outside.
+//! ([`gpui::FrameTimingCollector`]). The interval counts frames *presented*,
+//! stamped with their own present time, so it agrees with the platform's
+//! overlay (Metal's HUD counts the same drawables); the frame cost is what the
+//! framework actually spent in `Window::draw`, rather than an approximation
+//! measured from the outside. The headline rate is derived from that cost —
+//! the HUD never drives the frame loop, so nothing it reports is something it
+//! caused.
 //!
 //! Render it wherever it should appear, guarded by your own flag:
 //!
 //! ```no_run
-//! # use gpui::*;
+//! # use gpui::{prelude::*, *};
 //! # use gpui_fps::fps_monitor;
 //! # struct Example { show_fps: bool }
 //! # impl Render for Example {
@@ -25,8 +27,7 @@
 //! # }
 //! ```
 //!
-//! The returned overlay can change its corner, frame budget, and whether it
-//! continuously drives the window's animation loop. A custom palette or an
+//! The returned overlay can change its corner and its frame budget. A custom palette or an
 //! embedded rather than overlaid HUD is built by composing [`FpsMonitor`] and
 //! [`FpsOverlay`] directly.
 //!
@@ -39,6 +40,7 @@ mod gpu;
 mod memory;
 mod monitor;
 mod overlay;
+mod refresh;
 mod sampler;
 mod style;
 
@@ -59,7 +61,7 @@ use gpui::{App, AppContext as _, Entity, Global, Window, WindowId};
 /// when it should be visible:
 ///
 /// ```no_run
-/// # use gpui::*;
+/// # use gpui::{prelude::*, *};
 /// # use gpui_fps::fps_monitor;
 /// # struct Example { show_fps: bool }
 /// # impl Render for Example {

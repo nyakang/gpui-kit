@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use crate::ThemeStyled as _;
 use crate::{
-    ActiveTheme, Colorize as _, Disableable, Icon, RoleOverride, Selectable, Sizable, Size,
-    StyleSized, StyledExt,
+    ActiveTheme, Colorize as _, Disableable, Icon, Placement, RoleOverride, Selectable, Sizable,
+    Size, StyleSized, StyledExt,
     button::ButtonIcon,
     h_flex,
     select::Caret,
@@ -193,6 +193,10 @@ pub struct Button {
     children: Vec<AnyElement>,
     disabled: bool,
     pub(crate) selected: bool,
+    /// Held by the popover, menu or dropdown this button triggers, for as long
+    /// as it is open. Kept apart from `selected` because the two states mean
+    /// different things, even though they paint the same today.
+    open: bool,
     toggled: Option<bool>,
     role: RoleOverride,
     variant: ButtonVariant,
@@ -204,11 +208,14 @@ pub struct Button {
     hover_group: Option<SharedString>,
     hover_group_held: bool,
     size: Size,
+    content_style: StyleRefinement,
+    icon_size: Option<Size>,
     compact: bool,
     tooltip: Option<(
         SharedString,
         Option<(Rc<Box<dyn gpui::Action>>, Option<SharedString>)>,
     )>,
+    tooltip_placement: Option<Placement>,
     tooltip_builder: Option<Rc<dyn Fn(&mut Window, &mut App) -> gpui::AnyView>>,
     on_click: Option<Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>>,
     on_hover: Option<Rc<dyn Fn(&bool, &mut Window, &mut App)>>,
@@ -239,6 +246,7 @@ impl Button {
             children: Vec::new(),
             disabled: false,
             selected: false,
+            open: false,
             toggled: None,
             role: RoleOverride::default(),
             variant: ButtonVariant::default(),
@@ -251,7 +259,10 @@ impl Button {
             },
             border_edges: Edges::all(true),
             size: Size::Medium,
+            content_style: StyleRefinement::default(),
+            icon_size: None,
             tooltip: None,
+            tooltip_placement: None,
             tooltip_builder: None,
             on_click: None,
             focus_ring_enabled: true,
@@ -268,16 +279,39 @@ impl Button {
         }
     }
 
-    pub(super) fn variant(&self) -> ButtonVariant {
+    /// Uses a behavior primitive supplied by a compound Base control.
+    pub(crate) fn with_base(mut self, base: gpui_base::Button) -> Self {
+        self.base = base;
+        self
+    }
+
+    pub(crate) fn variant(&self) -> ButtonVariant {
         self.variant
+    }
+
+    /// Presentation supplied by a styled compound control. Standalone buttons
+    /// retain their normal size-derived content style.
+    pub(crate) fn content_style(mut self, style: StyleRefinement, icon_size: Size) -> Self {
+        self.content_style = style;
+        self.icon_size = Some(icon_size);
+        self
     }
 
     pub(super) fn button_size(&self) -> Size {
         self.size
     }
 
-    pub(super) fn is_disabled(&self) -> bool {
+    pub(crate) fn is_disabled(&self) -> bool {
         self.disabled
+    }
+
+    pub(crate) fn is_outline(&self) -> bool {
+        self.outline
+    }
+
+    /// Whether the button shows only its icon.
+    pub(crate) fn is_icon_only(&self) -> bool {
+        self.icon.is_some() && self.label.is_none() && self.children.is_empty()
     }
 
     pub fn role(mut self, role: impl Into<RoleOverride>) -> Self {
@@ -359,6 +393,15 @@ impl Button {
     /// Set the tooltip of the button.
     pub fn tooltip(mut self, tooltip: impl Into<SharedString>) -> Self {
         self.tooltip = Some((tooltip.into(), None));
+        self
+    }
+
+    /// Prefer a side for the tooltip, falling back when it does not fit.
+    ///
+    /// Applies to [`Self::tooltip`] and [`Self::tooltip_with_action`].
+    /// Omitting placement keeps automatic positioning.
+    pub fn tooltip_placement(mut self, placement: Placement) -> Self {
+        self.tooltip_placement = Some(placement);
         self
     }
 
@@ -447,6 +490,13 @@ impl Button {
         self
     }
 
+    /// Whether the button paints its selected styling, which is what both a
+    /// caller-set selection and an open popup look like today.
+    #[inline]
+    fn shows_selected_style(&self) -> bool {
+        self.selected || self.open
+    }
+
     /// Whether the button responds to the pointer at all.
     ///
     /// A loading button is as inert as a disabled one, it just keeps looking
@@ -489,6 +539,15 @@ impl Selectable for Button {
     fn is_selected(&self) -> bool {
         self.selected
     }
+
+    fn open(mut self, open: bool) -> Self {
+        self.open = open;
+        self
+    }
+
+    fn is_open(&self) -> bool {
+        self.open
+    }
 }
 
 impl Sizable for Button {
@@ -529,7 +588,9 @@ impl RenderOnce for Button {
         let interactive = self.interactive();
         let hoverable = self.hoverable();
         let disabled = self.disabled;
+        let selected = self.shows_selected_style();
         let loading = self.loading;
+        let tooltip_placement = self.tooltip_placement;
         let hover_group = self.hover_group;
         let hover_group_held = self.hover_group_held;
         let mut base = self.base;
@@ -538,10 +599,10 @@ impl RenderOnce for Button {
         let normal_style = style.normal(self.outline, cx);
         let selected_style = style.selected(self.outline, cx);
         let disabled_style = style.disabled(self.outline, cx);
-        let icon_size = match self.size {
+        let icon_size = self.icon_size.unwrap_or_else(|| match self.size {
             Size::Size(v) => Size::Size(v * 0.75),
             _ => self.size,
-        };
+        });
         let has_content = self.icon.is_some() || self.label.is_some() || !children.is_empty();
 
         let focus_handle = window
@@ -620,7 +681,7 @@ impl RenderOnce for Button {
                     .when(self.border_edges.top, |this| this.border_t_1())
                     .when(self.border_edges.bottom, |this| this.border_b_1())
             })
-            .when(!self.disabled && !self.selected, |this| {
+            .when(!self.disabled && !selected, |this| {
                 this.border_color(normal_style.border)
                     .bg(normal_style.bg)
                     .text_color(normal_style.fg)
@@ -647,6 +708,7 @@ impl RenderOnce for Button {
                         })
                     })
             })
+            .line_height(relative(1.25))
             .refine_style(&instance_style);
 
         // The explicit name wins: it exists precisely for the cases where the
@@ -669,6 +731,7 @@ impl RenderOnce for Button {
                 Size::Small => this.gap_1(),
                 _ => this.gap_2(),
             })
+            .refine_style(&self.content_style)
             .when_some(self.icon, |this, icon| {
                 this.child(
                     icon.loading_icon(self.loading_icon)
@@ -682,7 +745,6 @@ impl RenderOnce for Button {
                         .min_w_0()
                         .whitespace_nowrap()
                         .text_ellipsis()
-                        .line_height(relative(1.))
                         .child(label),
                 )
             })
@@ -698,7 +760,7 @@ impl RenderOnce for Button {
                 Role::Button
             }
         }))
-        .selected(self.selected)
+        .selected(selected)
         .disabled(disabled)
         // Base layers semantic states over the builder chain, so the caller's
         // own style is replayed inside each state to keep it the closest layer.
@@ -764,6 +826,9 @@ impl RenderOnce for Button {
                 on_click(event, window, cx);
             })
         })
+        .when(loading, |this| {
+            this.on_click(|_, _, cx| cx.stop_propagation())
+        })
         .when_some(self.on_hover.filter(|_| hoverable), |this, on_hover| {
             this.on_hover(move |hovered, window, cx| {
                 on_hover(hovered, window, cx);
@@ -771,9 +836,11 @@ impl RenderOnce for Button {
         })
         .map(|this| {
             if let Some(builder) = self.tooltip_builder {
-                this.managed_tooltip(move |window, cx| builder(window, cx))
+                this.managed_tooltip_with_placement(tooltip_placement, move |window, cx| {
+                    builder(window, cx)
+                })
             } else if let Some((tooltip, action)) = self.tooltip {
-                this.managed_tooltip(move |window, cx| {
+                this.managed_tooltip_with_placement(tooltip_placement, move |window, cx| {
                     Tooltip::new(tooltip.clone())
                         .when_some(action.clone(), |this, (action, context)| {
                             this.action(
@@ -1077,12 +1144,14 @@ impl ButtonVariant {
                 }
             }
             Self::Custom(colors) => colors.hover.into(),
-            Self::Ghost => if cx.theme().mode.is_dark() {
-                cx.theme().secondary.lighten(0.1).opacity(0.8)
-            } else {
-                cx.theme().secondary.darken(0.1).opacity(0.8)
+            Self::Ghost => {
+                let accent: Background = cx.theme().tokens.accent.into();
+                if cx.theme().mode.is_dark() {
+                    accent.opacity(0.5)
+                } else {
+                    accent
+                }
             }
-            .into(),
             Self::Link => cx.theme().transparent.into(),
             Self::Text => cx.theme().transparent.into(),
         };
@@ -1091,6 +1160,7 @@ impl ButtonVariant {
         let fg = match self {
             Self::Link => cx.theme().link_hover,
             Self::Text => cx.theme().foreground,
+            Self::Ghost => cx.theme().accent_foreground,
             _ => self.text_color(outline, cx),
         };
 
@@ -1129,12 +1199,7 @@ impl ButtonVariant {
                     cx.theme().tokens.button_secondary_active.into()
                 }
             }
-            Self::Ghost => if cx.theme().mode.is_dark() {
-                cx.theme().secondary.lighten(0.2).opacity(0.8)
-            } else {
-                cx.theme().secondary.darken(0.2).opacity(0.8)
-            }
-            .into(),
+            Self::Ghost => cx.theme().tokens.button_active.into(),
             Self::Danger => {
                 if outline {
                     self.outline_background(ButtonStyleState::Active, cx)
@@ -1492,6 +1557,54 @@ mod tests {
     }
 
     #[gpui::test]
+    fn base_activation_is_preserved_and_blocked_while_loading(cx: &mut gpui::TestAppContext) {
+        use gpui::{Context, Render, point};
+        use std::{cell::Cell, rc::Rc};
+
+        struct Harness {
+            clicks: Rc<Cell<usize>>,
+            loading: bool,
+        }
+        impl Render for Harness {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                let clicks = self.clicks.clone();
+                div().tab_group().child(
+                    Button::new("close")
+                        .with_base(
+                            gpui_base::Button::new("close")
+                                .on_click(move |_, _, _| clicks.set(clicks.get() + 1)),
+                        )
+                        .loading(self.loading)
+                        .size(px(100.)),
+                )
+            }
+        }
+
+        cx.update(crate::init);
+        let clicks = Rc::new(Cell::new(0));
+        let (view, cx) = cx.add_window_view({
+            let clicks = clicks.clone();
+            move |_, _| Harness {
+                clicks,
+                loading: false,
+            }
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.simulate_click(point(px(10.), px(10.)), Default::default());
+        assert_eq!(clicks.get(), 1);
+
+        view.update(cx, |view, cx| {
+            view.loading = true;
+            cx.notify();
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.simulate_click(point(px(10.), px(10.)), Default::default());
+        cx.update(|window, cx| window.focus_next(cx));
+        cx.simulate_keystrokes("enter space");
+        assert_eq!(clicks.get(), 1);
+    }
+
+    #[gpui::test]
     fn test_button_builder(_cx: &mut gpui::TestAppContext) {
         let button = Button::new("complex-button")
             .label("Save Changes")
@@ -1523,6 +1636,24 @@ mod tests {
         assert!(button.tab_stop);
         assert!(!button.dropdown_caret);
         assert!(matches!(button.rounded, ButtonRounded::Medium));
+    }
+
+    /// A button paints an open popup the way it paints a selection, but the
+    /// two states are stored apart, so a caller can read back which one it set
+    /// and a later design can tell them apart visually.
+    #[test]
+    fn an_open_trigger_is_stored_apart_from_a_selected_one() {
+        let open = Button::new("trigger").open(true);
+        assert!(open.is_open());
+        assert!(!open.is_selected());
+        assert!(open.shows_selected_style());
+
+        let selected = Button::new("trigger").selected(true);
+        assert!(selected.is_selected());
+        assert!(!selected.is_open());
+        assert!(selected.shows_selected_style());
+
+        assert!(!Button::new("trigger").shows_selected_style());
     }
 
     #[test]

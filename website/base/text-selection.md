@@ -176,7 +176,7 @@ For multiple runs, give each run a stable `document_order`. Input order is prese
 The [shared Text Selection showcase](https://github.com/longbridge/gpui-kit/blob/main/crates/base/examples/showcase/components/text_selection.rs) is the complete runnable example used by both the native command and the live Rust/WASM preview above:
 
 ```bash
-cargo run -p gpui-base --example components -- text-selection
+cargo run -p gpui-base-examples -- text-selection
 ```
 
 ## Complete Rust example
@@ -198,6 +198,33 @@ TextSelection::clear(window, cx); // Clear window and participant-local ranges.
 ```
 
 `selected_text` invokes participant copy callbacks only after the window and handle state leases have been released, so a callback may safely read or update selection state.
+
+### Touch selection
+
+A long press on a participant selects the word under the finger, and lifting the finger keeps that selection as a *touch selection*: one that carries a grab handle at each end and an edit menu. Base owns the gesture and the drag; a presentation layer draws the handles and the menu from `TouchSelectionSnapshot`, which holds the caret line box at each end in window coordinates.
+
+```rust
+use gpui_kit::base::{SelectionEdge, TextSelection};
+
+// Re-render whoever draws the handles when the touch selection changes.
+let subscription = TextSelection::observe_touch_selection(window, cx, |cx| { /* notify */ });
+
+if let Some(snapshot) = TextSelection::touch_selection(window, cx) {
+    let start = snapshot.start(); // the caret box before the first selected character
+    let end = snapshot.end();     // the caret box after the last one
+    let menu = snapshot.is_menu_open();
+}
+
+// Drag one end from the finger's position; the other end stays.
+TextSelection::begin_edge_drag(SelectionEdge::End, finger, window, cx);
+TextSelection::update_edge_drag(finger, window, cx);
+TextSelection::end_edge_drag(window, cx);
+
+TextSelection::select_all(window, cx);     // the participant that was pressed
+TextSelection::close_edit_menu(window, cx); // after the menu's own action ran
+```
+
+A participant paints its own handles, where it is in the paint order, so that whatever covers the text covers them too: call `TextSelectionHandle::prepaint_touch_handles` in prepaint (it inserts the hitboxes the finger takes) and `TextSelectionHandle::paint_touch_handles` at the end of paint, after `register`, with the selection color. `TextView` does both. Participants report where their selection ends were painted through `TextSelectionRegistration::with_selection_edges`. Whatever draws the menu must call `TextSelection::register_touch_ui(bounds, window, cx)` with its bounds as it paints, every frame; a press inside a registered surface is then left to that surface instead of clearing the selection it belongs to. `Root` in GPUI Component draws the menu.
 
 ## Advanced participant adapters
 

@@ -20,8 +20,9 @@ all reachable through the single `gpui-kit` dependency:
 
 Use `gpui-component` for polished controls with one coherent visual language,
 or build your own design system on the reusable behavior and infrastructure in
-`gpui-base`. This section documents GPUI Component; see [GPUI Base](/base/)
-and [GPUI Shell](/shell/) for the other two layers.
+`gpui-base`. This section covers GPUI Kit setup, shared design and coding guides, and
+application development. For library APIs, see [GPUI Component](/component),
+[GPUI Base](/base), and [GPUI Shell](/shell).
 
 ## Features
 
@@ -32,7 +33,7 @@ and [GPUI Shell](/shell/) for the other two layers.
 - **Data Tables**: Virtual scrolling, fixed and resizable columns, sorting, and cell selection across hundreds of thousands of rows.
 - **Virtual Lists**: Render only the visible range, including differently sized items.
 - **Code Editor**: 200K lines, Tree-sitter highlighting, diagnostics, completion, and hover.
-- **Dock Layout**: Resizable panels, draggable tabs, nested splits, edge docks, and freeform Tiles.
+- **Dock Layout**: Resizable panels, draggable tabs, nested splits, and edge docks.
 - **Rich Content**: Native Markdown and HTML, syntax highlighting, and charts.
 - **Design Freedom**: Use the complete visual system or build your own on `gpui-base`.
 - **Typed Motion**: CSS-aligned easing, timing, keyframes, springs, presence, and measured reveal with allocation-free steady sampling.

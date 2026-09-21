@@ -1,14 +1,17 @@
 //! Compatibility facade for rich text now owned by `gpui-base`.
 
 mod compat;
+mod frontmatter;
 mod style;
 
 pub use compat::{
     Text, TextView, TextViewLayoutState, TextViewPlugin, TextViewPrepaintState, html, markdown,
 };
+pub use frontmatter::FrontmatterPlugin;
 pub use gpui_base::text::{
-    MarkdownBlockParserFn, MarkdownBlockRenderFn, MarkdownExtensions, MarkdownNode,
-    MarkdownParseContext, MarkdownPlugin, SelectionFormat, TableData, TextViewState, markdown_ast,
+    InlineElement, InlineRenderContext, MarkdownBlockParserFn, MarkdownBlockRenderFn,
+    MarkdownExtensions, MarkdownNode, MarkdownParseContext, MarkdownPlugin, SelectionFormat,
+    TableData, TextViewMotion, TextViewState, markdown_ast,
 };
 pub use style::TextViewStyle;
 

@@ -1,11 +1,11 @@
 # NyaTerm fork notes
 
 This branch carries [NyaTerm](https://github.com/nyakang/nyaterm)'s local changes
-to `gpui-component` on top of an unmodified upstream base.
+to `gpui-kit` on top of an unmodified upstream base.
 
-- Fork: <https://github.com/nyakang/gpui-component>
-- Upstream: <https://github.com/longbridge/gpui-component>
-- Base revision: `884062aeb3` (upstream `main`, `gpui-component` 0.6.0)
+- Fork: <https://github.com/nyakang/gpui-kit>
+- Upstream: <https://github.com/longbridge/gpui-kit>
+- Base revision: `2f2bab9a6c` (upstream `main`, `gpui-kit` 0.6.5, 2026-09-21)
 - Branch: `nyaterm`
 
 NyaTerm uses this crate through the stable `nyaterm-ui` facade, so these are the
@@ -30,11 +30,12 @@ changes that could not be made on the NyaTerm side.
    unchanged, while nested submenus inherit the nearest parent appearance
    unless they explicitly override it. NyaTerm uses this at its `nyaterm-ui`
    boundary to align ordinary component menus with its richer tab context menu.
-4. `build(deps): use the NyaTerm GPUI fork` — upstream 0.6.0 uses the
-   `gpui-pre 0.3.1` package set. This branch points every Zed-derived workspace
-   dependency at one revision of `nyakang/zed`, rebased onto that package
-   set's `801c087a` source snapshot, so NyaTerm keeps its dynamic-texture and
-   hidden-cursor APIs without linking two incompatible GPUI copies.
+4. `build(deps): use the NyaTerm GPUI fork` — upstream 0.6.5 uses the
+   `gpui-pre 0.3.6` package set. This branch instead points every Zed-derived
+   workspace dependency at `nyakang/zed:nyaterm` revision `48eb3ec786`, so
+   NyaTerm keeps its dynamic-texture and hidden-cursor APIs without linking two
+   incompatible GPUI copies. `script/check-gpui-pin.ts` validates either the
+   exact published snapshot set or the coherent NyaTerm fork revision.
 
 ## Not carried here
 
@@ -51,28 +52,26 @@ changes that could not be made on the NyaTerm side.
   `.absolute().inset_0()` and added `the_backdrop_fills_the_host`. The merge
   keeps that implementation and drops NyaTerm's older `.size_full()` hunk.
 
-Upstream 0.6.0 also renamed `gpui-component-assets` to `gpui-kit-assets`.
-NyaTerm keeps its existing dependency key as a Cargo alias so application code
-continues to import `gpui_component_assets`.
-
 ## Merge notes
 
-The 0.6.0 merge moved `crates/ui` to `crates/component`; Git carried the
-segmented-tab and popup-appearance changes across the rename automatically.
-The scrollbar patch also merged without conflict. Only
-`crates/base/src/dialog.rs` conflicted, because upstream had independently
-fixed the same bug; the resolution takes the upstream implementation and test.
+The 0.6.5 merge conflicted in `Cargo.toml`, `Cargo.lock`, and
+`crates/component/src/tab/tab_bar.rs`. The manifest and regenerated lockfile
+keep upstream's 0.6.5 workspace, features, tests, and QuickJS migration while
+replacing the published `gpui-pre` set with the single NyaTerm Zed revision.
+The tab-bar resolution keeps upstream's direct-child indexing and flex-basis
+fix while retaining equal-width segmented tabs. The scrollbar viewport-hover,
+popup-menu appearance, and macro crate-path fallback patches merged cleanly.
 
 ## Validation
 
 Validated on Windows 11 against `nyakang/zed:nyaterm` revision
-`3b3066c872`, whose patch stack is based on the same `801c087a` snapshot as
-`gpui-pre 0.3.1`:
+`48eb3ec786`:
 
 ```sh
 cargo test -p gpui-base
 cargo test -p gpui-base reveal
 cargo test -p gpui-component menu::popup_menu --lib
-cargo check -p gpui-component
+cargo check -p gpui-component -p gpui-kit
 cargo clippy -p gpui-component --all-targets
+bun script/check-gpui-pin.ts
 ```

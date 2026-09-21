@@ -4,6 +4,7 @@ use gpui::{
     MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement, RenderOnce, Stateful,
     StatefulInteractiveElement, StyleRefinement, Styled, Window, div, prelude::FluentBuilder as _,
 };
+use gpui_base::TestSupportExt as _;
 use smallvec::SmallVec;
 use std::collections::HashMap;
 
@@ -176,14 +177,14 @@ impl RenderOnce for ListItem {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let is_active = self.confirmed || self.selected || self.secondary_selected;
 
-        let corner_radii = self.style.corner_radii.clone();
-
-        let mut selected_style = StyleRefinement::default();
-        selected_style.corner_radii = corner_radii;
-
         let is_selectable = !(self.disabled || self.mode.is_separator());
 
+        // The outline is an absolute child, so it has to repeat the item's own radius.
+        let mut outline_style = StyleRefinement::default();
+        outline_style.corner_radii = self.style.corner_radii.clone();
+
         self.base
+            .test_support()
             .relative()
             .gap_x_1()
             .py_1()
@@ -208,8 +209,14 @@ impl RenderOnce for ListItem {
                                 })
                             })
                     })
-                    .when(!is_active, |this| {
-                        this.hover(|this| this.bg(cx.theme().tokens.list_hover))
+                    // Register `hover` unconditionally, a conditional registration
+                    // leaves a stale hover style behind when the item turns active.
+                    .hover(|this| {
+                        if is_active {
+                            this
+                        } else {
+                            this.bg(cx.theme().tokens.list_hover)
+                        }
                     })
             })
             .when(!is_selectable, |this| {
@@ -234,31 +241,24 @@ impl RenderOnce for ListItem {
                     }),
             )
             .when_some(self.suffix, |this, suffix| this.child(suffix(window, cx)))
-            .map(|this| {
-                if is_selectable && (self.selected || self.secondary_selected) {
-                    let bg = if self.selected && cx.theme().list.active_highlight {
-                        cx.theme().list_active
-                    } else {
-                        cx.theme().accent
-                    };
-
-                    this.when(!self.secondary_selected, |this| this.bg(bg))
-                        .when(cx.theme().list.active_highlight, |this| {
-                            this.child(
-                                div()
-                                    .absolute()
-                                    .top_0()
-                                    .left_0()
-                                    .right_0()
-                                    .bottom_0()
-                                    .border_1()
-                                    .border_color(cx.theme().list_active_border)
-                                    .refine_style(&selected_style),
-                            )
-                        })
+            .when(is_selectable && self.selected, |this| {
+                let bg = if cx.theme().list.active_highlight {
+                    cx.theme().list_active
                 } else {
-                    this
-                }
+                    cx.theme().accent
+                };
+
+                this.bg(bg)
+            })
+            .when(is_selectable && self.secondary_selected, |this| {
+                this.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .border_1()
+                        .border_color(cx.theme().selection)
+                        .refine_style(&outline_style),
+                )
             })
     }
 }

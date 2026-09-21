@@ -1,5 +1,6 @@
 //! A tab group's behavior, with no appearance of its own.
 
+use crate::TestSupportExt as _;
 use std::{rc::Rc, sync::Arc};
 
 use gpui::{
@@ -53,9 +54,8 @@ pub enum TabGroupEvent {
 ///
 /// Pushed as one value rather than one setter per fact. These are read
 /// together, and a container that updates one while leaving another stale
-/// describes a dock that cannot exist — a group on a tiles canvas that still
-/// reports itself droppable, or a group beside siblings that still reports
-/// itself alone. Choosing a constructor forces the container kind to be
+/// describes a dock that cannot exist — a group beside siblings that still
+/// reports itself alone. Choosing a constructor forces the container kind to be
 /// stated; anything a constructor does not grant stays off, so a container
 /// that forgets something gets a group that does less rather than more.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -117,9 +117,9 @@ impl TabGroupConstraints {
     /// Whether the group's place in the dock is fixed.
     ///
     /// The dock-wide lock is the whole of it. A tab group only ever sits
-    /// inside a split — a tiles canvas holds panels directly and never a tab
-    /// group — so there is no second way for a container to pin one down, and
-    /// no separate `is_dock_locked` reader that would answer identically.
+    /// inside a split, so there is no second way for a container to pin one
+    /// down, and no separate `is_dock_locked` reader that would answer
+    /// identically.
     pub fn is_locked(&self) -> bool {
         self.dock_locked
     }
@@ -353,8 +353,7 @@ impl TabGroup {
     ///
     /// One value rather than a setter per fact, because these are read
     /// together and a container that updates one while leaving another stale
-    /// describes a dock that cannot exist — a group on a tiles canvas that
-    /// still reports itself droppable, or a group beside siblings that still
+    /// describes a dock that cannot exist — a group beside siblings that still
     /// reports itself alone.
     pub(crate) fn set_constraints(
         &mut self,
@@ -614,10 +613,7 @@ impl TabGroup {
         self.drop_indicator = None;
         cx.emit(TabGroupEvent::DragDrop {
             item: item.clone(),
-            target: DropTarget::Group {
-                node: self.node,
-                placement,
-            },
+            target: DropTarget::new(self.node, placement),
         });
         cx.notify();
     }
@@ -695,6 +691,7 @@ impl Render for TabGroup {
 
         renderer
             .frame(&context, window, cx)
+            .test_support()
             // Structure, applied around whatever the renderer returns.
             //
             // A column, and not a `div`: gpui's default display is Block, and
@@ -714,6 +711,7 @@ impl Render for TabGroup {
             .child(
                 renderer
                     .content_frame(&context, window, cx)
+                    .test_support()
                     // The region below the tab bar takes the rest of the
                     // group -- except in a collapsed one, which is a strip of
                     // tabs with no content and must claim no space at all.
@@ -729,12 +727,7 @@ impl Render for TabGroup {
                     // zero lets the region win.
                     .min_h(px(0.))
                     .overflow_hidden()
-                    // Both drag kinds hang off `droppable` alone. The old
-                    // `TabPanel` nested a second guard inside the same
-                    // droppable test for the host-item handlers, asking
-                    // whether it sat on a tiles canvas; it never did anything,
-                    // because such a group was already locked and `droppable`
-                    // was therefore false.
+                    // Both drag kinds hang off `droppable` alone.
                     .when(droppable, |this| {
                         this.on_drag_move(cx.listener(Self::on_panel_drag_move))
                             .on_drop(cx.listener(|this, drag: &DragPanel, _, cx| {
@@ -1039,14 +1032,12 @@ mod tests {
                     node.as_u64(),
                     placement
                 ),
-                InsertTarget::Tile { .. } => "drop tile".into(),
             },
-            TabGroupEvent::DragDrop { target, .. } => match target {
-                DropTarget::Group { node, placement } => {
-                    format!("item onto {} at {:?}", node.as_u64(), placement)
-                }
-                DropTarget::Canvas => "item onto canvas".into(),
-            },
+            TabGroupEvent::DragDrop { target, .. } => format!(
+                "item onto {} at {:?}",
+                target.node().as_u64(),
+                target.placement()
+            ),
             TabGroupEvent::ClosePanel { panel } => format!("close {}", panel.as_u64()),
             TabGroupEvent::ActiveChanged { ix } => format!("active {ix}"),
             TabGroupEvent::ZoomIn => "zoom in".into(),
