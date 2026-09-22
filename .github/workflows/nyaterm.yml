@@ -28,7 +28,7 @@ jobs:
         run: script/bootstrap
 
       - name: Verify the pinned Zed fork
-        run: cargo metadata --format-version 1 | grep -q 'nyakang/zed?rev=3b3066c872'
+        run: cargo metadata --format-version 1 | grep -q 'nyakang/zed?rev=4ba16e3a20a9403b2d0266626f5c435bb1204223'
 
       - name: Base crate tests
         run: cargo test -p gpui-base

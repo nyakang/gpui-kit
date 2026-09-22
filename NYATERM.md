@@ -33,7 +33,7 @@ changes that could not be made on the NyaTerm side.
    boundary to align ordinary component menus with its richer tab context menu.
 4. `build(deps): use the NyaTerm GPUI fork` — upstream 0.6.5 uses the
    `gpui-pre 0.3.6` package set. This branch instead points every Zed-derived
-   workspace dependency at `nyakang/zed:nyaterm` revision `952fab9804`, so
+   workspace dependency at `nyakang/zed:nyaterm` revision `4ba16e3a20`, so
    NyaTerm keeps its dynamic-texture and hidden-cursor APIs without linking two
    incompatible GPUI copies. `script/check-gpui-pin.ts` validates either the
    exact published snapshot set or the coherent NyaTerm fork revision.
@@ -66,7 +66,7 @@ popup-menu appearance, and macro crate-path fallback patches merged cleanly.
 ## Validation
 
 Validated on Windows 11 against `nyakang/zed:nyaterm` revision
-`952fab9804`:
+`4ba16e3a20`:
 
 ```sh
 cargo test -p gpui-base
@@ -79,4 +79,6 @@ bun script/check-gpui-pin.ts
 
 The 2026-09-22 pin refresh moves all six Zed-derived dependencies together to
 `952fab9804`; no gpui-kit source patch changed and upstream `main` was already
-contained in this branch.
+contained in this branch. The same-day cross-window drag refresh moves those
+six dependencies together to `4ba16e3a20`; it only consumes the new GPUI
+platform hook and does not change gpui-kit source.
