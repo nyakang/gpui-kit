@@ -5,7 +5,7 @@ to `gpui-kit` on top of an unmodified upstream base.
 
 - Fork: <https://github.com/nyakang/gpui-kit>
 - Upstream: <https://github.com/longbridge/gpui-kit>
-- Base revision: `2f2bab9a6c` (upstream `main`, `gpui-kit` 0.6.5, 2026-09-22)
+- Base revision: `ec6b87f5d9d04a38e9c9bbcf6e389a45a570afa4` (upstream `main`, `gpui-kit` 0.7.0, 2026-10-01)
 - Branch: `nyaterm`
 
 NyaTerm uses this crate through the stable `nyaterm-ui` facade, so these are the
@@ -31,8 +31,8 @@ changes that could not be made on the NyaTerm side.
    unchanged, while nested submenus inherit the nearest parent appearance
    unless they explicitly override it. NyaTerm uses this at its `nyaterm-ui`
    boundary to align ordinary component menus with its richer tab context menu.
-4. `build(deps): use the NyaTerm GPUI fork` — upstream 0.6.5 uses the
-   `gpui-pre 0.3.6` package set. This branch instead points every Zed-derived
+4. `build(deps): use the NyaTerm GPUI fork` — upstream 0.7.0 uses the
+   `gpui-pre 0.3.7` package set. This branch instead points every Zed-derived
    workspace dependency at `nyakang/zed:nyaterm` revision `4ba16e3a20`, so
    NyaTerm keeps its dynamic-texture and hidden-cursor APIs without linking two
    incompatible GPUI copies. `script/check-gpui-pin.ts` validates either the
@@ -82,3 +82,36 @@ The 2026-09-22 pin refresh moves all six Zed-derived dependencies together to
 contained in this branch. The same-day cross-window drag refresh moves those
 six dependencies together to `4ba16e3a20`; it only consumes the new GPUI
 platform hook and does not change gpui-kit source.
+
+## 2026-10-01 upstream merge
+
+Merged upstream GPUI Kit 0.7.0. Manifest conflicts keep the upstream workspace
+version and the six coherent NyaTerm Zed dependencies at `0544bd292a52fed9718e1ba9739c4ac82c41d223`.
+The lockfile was resolved from the previous fork lock, retaining unrelated
+registry versions. The menu conflict adopts upstream element hover so keyboard
+navigation clears the previous highlight, while retaining custom disabled
+opacity and popup appearance. Segmented-tab sizing and viewport scrollbar
+reveal remain present.
+
+A separate compatibility patch passes `IndentAdjustment::SameIndent` at all
+three Base line-wrapper calls, preserving the previous indentation behavior.
+The branch workflow installs Bun and runs the manifest coherence validator
+instead of matching a hard-coded old revision.
+
+Windows validation passed:
+
+```sh
+cargo check -p gpui-component -p gpui-kit
+cargo test -p gpui-base                           # 1252 tests passed
+cargo test -p gpui-component menu::popup_menu --lib # 4 tests passed
+cargo test -p gpui-component --lib                # 578 tests passed
+cargo clippy -p gpui-component --all-targets
+bun script/check-gpui-pin.ts
+```
+
+The six Zed-derived packages also resolve to exactly one fork revision in the
+lockfile. Formatting checks pass for all three changed Rust files.
+`cargo fmt --all -- --check` reports existing upstream differences in
+`crates/component/src/form/tests.rs` and `crates/component/src/styled.rs` under
+both Rust 1.97.1 and 1.98.1. Both files are byte-identical to the upstream
+baseline; this merge leaves those unrelated formatting differences untouched.
