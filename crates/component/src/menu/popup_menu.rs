@@ -1343,12 +1343,11 @@ impl PopupMenu {
         let selected = self.selected_index == Some(ix);
         const EDGE_PADDING: Pixels = px(4.);
         let is_submenu = matches!(item, PopupMenuItem::Submenu { .. });
-        let group_name = format!("{}:item-{}", cx.entity().entity_id(), ix);
 
         let item_height = options.layout.row_height;
         let radius = options.layout.item_radius;
 
-        let this = MenuItemElement::new(ix, &group_name)
+        let this = MenuItemElement::new(ix)
             .relative()
             .when(options.layout.font_size.is_none(), |this| this.text_sm())
             .when_some(options.layout.font_size, |this, size| this.text_size(size))
@@ -1357,10 +1356,15 @@ impl PopupMenu {
             .rounded(radius)
             .items_center()
             .selected(selected)
-            .on_hover(cx.listener(move |this, hovered, _, cx| {
+            .on_hover(cx.listener(move |this, hovered, window, cx| {
                 if *hovered {
                     this.selected_index = Some(ix);
-                } else if !is_submenu && this.selected_index == Some(ix) {
+                } else if !is_submenu
+                    && this.selected_index == Some(ix)
+                    // A key press ends hover under a still pointer; keep the
+                    // highlight so the next arrow key moves on from this item.
+                    && !window.last_input_was_keyboard()
+                {
                     // TODO: Better handle the submenu unselection when hover out
                     this.selected_index = None;
                 }

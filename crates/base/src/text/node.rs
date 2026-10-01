@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     ops::Range,
-    sync::{Arc, Mutex, OnceLock},
+    sync::{Arc, Mutex, OnceLock, Weak},
 };
 
 use gpui::{
@@ -25,6 +25,7 @@ use crate::{
             text_size_ranges,
         },
         inline_flow::{InlineFlow, InlineFlowItem, slice_ranges},
+        range_highlight::{RangeHighlightFrame, RevealAt, RevealRequest},
         stream_fade::{StreamFadeFrame, TextLeafKey},
         text_view::handle_link_click,
     },
@@ -33,7 +34,7 @@ use crate::{
 
 use super::{
     SelectionFormat, TextViewStyle,
-    utils::{data_url_image, list_item_prefix},
+    utils::{data_url_image, list_item_prefix, ordered_list_ordinal},
 };
 
 const CHECK_SVG_LIGHT: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none"><path d="m3.25 8.25 3 3 6.5-7" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>"#;
@@ -61,6 +62,8 @@ pub(crate) enum BlockNode {
         /// Only contains ListItem, others will be ignored
         children: Vec<BlockNode>,
         ordered: bool,
+        /// The first ordinal for an ordered list. HTML lists leave this unset.
+        start: Option<u32>,
         span: Option<Span>,
     },
     ListItem {
@@ -218,12 +221,15 @@ impl BlockNode {
                 }
             }
             BlockNode::List {
-                children, ordered, ..
+                children,
+                ordered,
+                start,
+                ..
             } => {
                 if matches!(kind, BlockTextKind::SelectedSource) {
                     // Reconstruct the list source, indenting nested lists and
                     // restoring list markers and task-list checkboxes.
-                    text.push_str(&list_selected_source(children, *ordered, ""));
+                    text.push_str(&list_selected_source(children, *ordered, *start, ""));
                 } else {
                     text.push_str(&Self::children_text(children, kind));
                 }
@@ -952,7 +958,12 @@ fn table_selected_source(table: &Table) -> String {
 /// and sub-list lines align under the item text. Items with no selected content
 /// are skipped but still consume an ordered number, so the remaining items keep
 /// their original numbering.
-fn list_selected_source(children: &[BlockNode], ordered: bool, indent: &str) -> String {
+fn list_selected_source(
+    children: &[BlockNode],
+    ordered: bool,
+    start: Option<u32>,
+    indent: &str,
+) -> String {
     let mut out = String::new();
     let mut item_ix = 0usize;
 
@@ -967,7 +978,7 @@ fn list_selected_source(children: &[BlockNode], ordered: bool, indent: &str) -> 
         };
 
         let marker = if ordered {
-            format!("{}. ", item_ix + 1)
+            format!("{}. ", ordered_list_ordinal(start, item_ix))
         } else {
             "- ".to_string()
         };
@@ -986,12 +997,14 @@ fn list_selected_source(children: &[BlockNode], ordered: bool, indent: &str) -> 
             if let BlockNode::List {
                 children: sub_children,
                 ordered: sub_ordered,
+                start: sub_start,
                 ..
             } = sub
             {
                 nested.push_str(&list_selected_source(
                     sub_children,
                     *sub_ordered,
+                    *sub_start,
                     &child_indent,
                 ));
             } else {
@@ -1094,14 +1107,20 @@ pub(crate) struct Paragraph {
     pub(super) render_cache: ParagraphRenderCache,
 }
 
-/// Derived state: a clone starts empty and rebuilds, and it is invisible to
-/// `Debug` and equality.
+/// Derived state, invisible to `Debug` and equality.
+///
+/// A clone carries what was cached so far: the cached value is a pure
+/// function of the children and the style it is keyed on, a clone has the
+/// same children, and every mutation of the children replaces the cache
+/// (`invalidate_render_cache`). Streaming reparses deep-clone the document on
+/// every append, and an empty clone made every paragraph rebuild.
 #[derive(Default)]
-pub(super) struct ParagraphRenderCache(Mutex<Option<ParagraphRender>>);
+pub(super) struct ParagraphRenderCache(Mutex<Option<Arc<ParagraphRender>>>);
 
 impl Clone for ParagraphRenderCache {
     fn clone(&self) -> Self {
-        Self::default()
+        let cached = self.0.lock().ok().and_then(|cache| cache.clone());
+        Self(Mutex::new(cached))
     }
 }
 
@@ -1198,13 +1217,13 @@ impl Paragraph {
         }
         let text = SharedString::from(text);
         if let Ok(mut cache) = self.render_cache.0.lock() {
-            *cache = Some(ParagraphRender {
+            *cache = Some(Arc::new(ParagraphRender {
                 style: node_cx.style.clone(),
                 mono_font,
                 text: text.clone(),
                 highlights: highlights.clone(),
                 links: links.clone(),
-            });
+            }));
         }
         (text, highlights, links)
     }
@@ -1485,6 +1504,74 @@ pub(crate) struct Table {
     pub(crate) children: Vec<TableRow>,
     pub(crate) column_aligns: Vec<ColumnumnAlign>,
     pub(crate) span: Option<Span>,
+    /// The [`TableData`] handed to the `table_actions` hook, kept between
+    /// frames; see [`Table::cached_table_data`].
+    pub(crate) table_data_cache: TableDataCache,
+    pub(crate) column_widths_cache: TableColumnWidthsCache,
+}
+
+/// Derived state, invisible to `Debug` and equality.
+///
+/// A clone carries what was cached so far: a parsed table does not change
+/// after parsing (cell mutations only touch selection state, which
+/// [`TableData`] does not read), so a clone has the same data. Streaming
+/// reparses deep-clone the document on every append, and an empty clone made
+/// every table rebuild.
+#[derive(Default)]
+pub(crate) struct TableDataCache(Mutex<Option<Arc<TableData>>>);
+
+impl Clone for TableDataCache {
+    fn clone(&self) -> Self {
+        let cached = self.0.lock().ok().and_then(|cache| cache.clone());
+        Self(Mutex::new(cached))
+    }
+}
+
+impl PartialEq for TableDataCache {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl std::fmt::Debug for TableDataCache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("TableDataCache")
+    }
+}
+
+/// Like `TableDataCache`, derived widths survive clones of an unchanged
+/// parsed table. A newly parsed table starts with an empty cache.
+#[derive(Default)]
+pub(crate) struct TableColumnWidthsCache(Mutex<Option<Arc<TableColumnWidths>>>);
+
+impl Clone for TableColumnWidthsCache {
+    fn clone(&self) -> Self {
+        let cached = self.0.lock().ok().and_then(|cache| cache.clone());
+        Self(Mutex::new(cached))
+    }
+}
+
+impl PartialEq for TableColumnWidthsCache {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl std::fmt::Debug for TableColumnWidthsCache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("TableColumnWidthsCache")
+    }
+}
+
+struct TableColumnWidths {
+    text_system: Weak<gpui::WindowTextSystem>,
+    text_style: gpui::TextStyle,
+    rem_size: Pixels,
+    mono_family: SharedString,
+    inline_code: HighlightStyle,
+    /// Maxima from ordinary text only. Custom cells may shrink after an update.
+    widths: Vec<f32>,
+    custom_cells: Vec<(usize, usize)>,
 }
 
 /// Plain snapshot of a rendered Markdown table, passed to the
@@ -1571,6 +1658,24 @@ impl Table {
             markdown: self.to_markdown(),
             span: self.span.map(|span| span.start..span.end),
         }
+    }
+
+    /// [`Self::table_data`], built on the first render and reused by later
+    /// ones: serializing every cell and the whole table back to Markdown on
+    /// every scroll or stream frame is wasted work, and a parsed table does
+    /// not change after parsing (a reparse builds a new one).
+    fn cached_table_data(&self) -> Arc<TableData> {
+        if let Ok(cache) = self.table_data_cache.0.lock()
+            && let Some(cached) = cache.as_ref()
+        {
+            return cached.clone();
+        }
+
+        let data = Arc::new(self.table_data());
+        if let Ok(mut cache) = self.table_data_cache.0.lock() {
+            *cache = Some(data.clone());
+        }
+        data
     }
 }
 
@@ -1850,6 +1955,7 @@ impl CodeBlock {
         cx: &mut App,
     ) -> AnyElement {
         let style = &node_cx.style;
+        let leaf_key = self.span.map(|span| TextLeafKey::block(span.start));
 
         let block = div()
             .w_full()
@@ -1860,22 +1966,26 @@ impl CodeBlock {
             .text_size(cx.theme().tokens.typography.mono_md.size)
             .relative()
             .refine_style(&style.code_block())
-            .child(Inline::new(
-                self.state.clone(),
-                vec![],
-                fade_highlights(
-                    node_cx
-                        .code_block_highlighter
-                        .as_ref()
-                        .map(|highlighter| self.highlighted_styles(highlighter))
-                        .unwrap_or_default()
-                        .into_iter()
-                        .map(|(range, style)| (range, InlineHighlight::from(style)))
-                        .collect(),
-                    node_cx.stream_fades(self.span.map(|span| TextLeafKey::block(span.start))),
-                ),
-                node_cx.link_click_handler.clone(),
-            ));
+            .child(
+                Inline::new(
+                    self.state.clone(),
+                    vec![],
+                    fade_highlights(
+                        node_cx
+                            .code_block_highlighter
+                            .as_ref()
+                            .map(|highlighter| self.highlighted_styles(highlighter))
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|(range, style)| (range, InlineHighlight::from(style)))
+                            .collect(),
+                        node_cx.stream_fades(leaf_key),
+                    ),
+                    node_cx.link_click_handler.clone(),
+                )
+                .range_backgrounds(node_cx.range_backgrounds(leaf_key).to_vec())
+                .reveal(node_cx.reveal_at(leaf_key, 0, self.code().len())),
+            );
         // The id scopes the caller's action ids per code block, so plain ids
         // like `"copy"` don't collide across blocks; without actions nothing
         // under the block needs element state.
@@ -1918,13 +2028,25 @@ pub(crate) struct NodeContext {
     pub(crate) code_block_actions: Option<Arc<CodeBlockActionsFn>>,
     pub(crate) code_block_highlighter: Option<Arc<CodeBlockHighlighterFn>>,
     pub(crate) table_actions: Option<Arc<TableActionsFn>>,
+    pub(crate) image_source: Option<Arc<super::text_view::ImageSourceFn>>,
     pub(crate) link_click_handler: Option<Arc<LinkClickHandlerFn>>,
     pub(crate) markdown_extensions: Arc<MarkdownExtensions>,
     /// This frame's streamed fade-in, when any text is still fading.
     pub(crate) stream_fade: Option<Arc<StreamFadeFrame>>,
+    /// The application's range highlights, when there are any.
+    pub(crate) range_highlights: Option<Arc<RangeHighlightFrame>>,
+    /// The line being scrolled into view, when there is one.
+    pub(crate) reveal: Option<RevealRequest>,
 }
 
 impl NodeContext {
+    fn image_source(&self, image: &ImageNode) -> ImageSource {
+        match &self.image_source {
+            Some(resolve) => resolve(&image.url),
+            None => image.source(),
+        }
+    }
+
     pub(super) fn add_ref(&mut self, identifier: SharedString, link: LinkMark) {
         self.link_refs.insert(identifier, link);
     }
@@ -1935,6 +2057,21 @@ impl NodeContext {
             (Some(frame), Some(key)) => frame.fades(key).unwrap_or_default(),
             _ => &[],
         }
+    }
+
+    /// The range highlight backgrounds of the text leaf `key`, in its
+    /// rendered byte space.
+    fn range_backgrounds(&self, key: Option<TextLeafKey>) -> &[(Range<usize>, Hsla)] {
+        match (&self.range_highlights, key) {
+            (Some(frame), Some(key)) => frame.backgrounds(key),
+            _ => &[],
+        }
+    }
+
+    /// The pending reveal, when it starts in the text leaf `key` between
+    /// `start` and `end`, rebased to `start`.
+    fn reveal_at(&self, key: Option<TextLeafKey>, start: usize, end: usize) -> Option<RevealAt> {
+        self.reveal.as_ref()?.at(key, start, end)
     }
 }
 
@@ -2011,9 +2148,9 @@ impl Paragraph {
         highlights
     }
 
-    /// `fade_key` names this paragraph's text for the streamed fade-in; the
-    /// owning block supplies it because a heading or table cell paragraph
-    /// carries no span of its own.
+    /// `fade_key` names this paragraph's text for the streamed fade-in and
+    /// for range highlights; the owning block supplies it because a heading
+    /// or table cell paragraph carries no span of its own.
     fn render(
         &self,
         fade_key: Option<TextLeafKey>,
@@ -2023,11 +2160,12 @@ impl Paragraph {
     ) -> AnyElement {
         let children = &self.children;
         let fades = node_cx.stream_fades(fade_key);
+        let backgrounds = node_cx.range_backgrounds(fade_key);
 
         if self.should_render_inline_flow() {
             return InlineFlow::new(
                 leaf_element_id(fade_key),
-                self.inline_flow_items(fades, node_cx, cx),
+                self.inline_flow_items(fade_key, fades, backgrounds, node_cx, cx),
                 node_cx.link_click_handler.clone(),
             )
             .into_any_element();
@@ -2049,6 +2187,8 @@ impl Paragraph {
                 }
             }
             let highlights = fade_highlights(highlights, &slice_fades(fades, 0, text.len()));
+            let backgrounds = slice_backgrounds(backgrounds, 0, text.len());
+            let reveal = node_cx.reveal_at(fade_key, 0, text.len());
             if let Ok(mut state) = self.state.lock() {
                 state.set_text(text);
             }
@@ -2058,6 +2198,8 @@ impl Paragraph {
                 highlights,
                 node_cx.link_click_handler.clone(),
             )
+            .range_backgrounds(backgrounds)
+            .reveal(reveal)
             .into_any_element();
         }
 
@@ -2090,12 +2232,18 @@ impl Paragraph {
                             ),
                             node_cx.link_click_handler.clone(),
                         )
+                        .range_backgrounds(slice_backgrounds(
+                            backgrounds,
+                            consumed,
+                            consumed + text.len(),
+                        ))
+                        .reveal(node_cx.reveal_at(fade_key, consumed, consumed + text.len()))
                         .into_any_element(),
                     );
                 }
                 let link_click_handler = node_cx.link_click_handler.clone();
                 child_nodes.push(
-                    img(image.source())
+                    img(node_cx.image_source(image))
                         .id(ix)
                         .object_fit(ObjectFit::Contain)
                         .max_w(relative(1.))
@@ -2169,10 +2317,8 @@ impl Paragraph {
 
         // Add the last text node
         if text.len() > 0 {
-            let highlights = fade_highlights(
-                highlights,
-                &slice_fades(fades, consumed, consumed + text.len()),
-            );
+            let text_end = consumed + text.len();
+            let highlights = fade_highlights(highlights, &slice_fades(fades, consumed, text_end));
             if let Ok(mut state) = self.state.lock() {
                 state.set_text(text.into());
             }
@@ -2183,6 +2329,8 @@ impl Paragraph {
                     highlights,
                     node_cx.link_click_handler.clone(),
                 )
+                .range_backgrounds(slice_backgrounds(backgrounds, consumed, text_end))
+                .reveal(node_cx.reveal_at(fade_key, consumed, text_end))
                 .into_any_element(),
             );
         }
@@ -2215,7 +2363,9 @@ impl Paragraph {
 
     fn inline_flow_items(
         &self,
+        leaf_key: Option<TextLeafKey>,
         fades: &[(Range<usize>, f32)],
+        backgrounds: &[(Range<usize>, Hsla)],
         node_cx: &NodeContext,
         cx: &mut App,
     ) -> Vec<InlineFlowItem> {
@@ -2225,7 +2375,7 @@ impl Paragraph {
         let mut links: Vec<(Range<usize>, LinkMark)> = vec![];
         let mut offset = 0;
         // Where `text` starts in the paragraph's whole rendered text, which
-        // is the byte space the fade ranges use.
+        // is the byte space the fade and background ranges use.
         let mut consumed = 0;
 
         for inline_node in &self.children {
@@ -2235,12 +2385,17 @@ impl Paragraph {
                 }
                 if !text.is_empty() {
                     let item_fades = slice_fades(fades, consumed, consumed + text.len());
+                    let item_backgrounds =
+                        slice_backgrounds(backgrounds, consumed, consumed + text.len());
+                    let item_reveal = node_cx.reveal_at(leaf_key, consumed, consumed + text.len());
                     consumed += text.len();
                     items.push(InlineFlowItem::Text {
                         state: inline_node.state.clone(),
                         text: std::mem::take(&mut text).into(),
                         links: std::mem::take(&mut links),
                         highlights: fade_highlights(std::mem::take(&mut highlights), &item_fades),
+                        backgrounds: item_backgrounds,
+                        reveal: item_reveal,
                     });
                 }
                 let mut object_style = HighlightStyle::default();
@@ -2295,11 +2450,17 @@ impl Paragraph {
                             highlights.clone(),
                             &slice_fades(fades, consumed, consumed + text.len()),
                         ),
+                        backgrounds: slice_backgrounds(
+                            backgrounds,
+                            consumed,
+                            consumed + text.len(),
+                        ),
+                        reveal: node_cx.reveal_at(leaf_key, consumed, consumed + text.len()),
                     });
                 }
 
                 items.push(InlineFlowItem::Image {
-                    source: image.source(),
+                    source: node_cx.image_source(image),
                     link: image.link.clone(),
                     title: image.title(),
                     width: image.width,
@@ -2349,11 +2510,15 @@ impl Paragraph {
                 highlights,
                 &slice_fades(fades, consumed, consumed + text.len()),
             );
+            let backgrounds = slice_backgrounds(backgrounds, consumed, consumed + text.len());
+            let reveal = node_cx.reveal_at(leaf_key, consumed, consumed + text.len());
             items.push(InlineFlowItem::Text {
                 state: self.state.clone(),
                 text: text.into(),
                 links,
                 highlights,
+                backgrounds,
+                reveal,
             });
         }
 
@@ -2396,6 +2561,16 @@ fn slice_fades(
     slice_ranges(fades, start, end, |range, fade_out| (range, *fade_out))
 }
 
+/// The range highlight backgrounds overlapping `start..end`, rebased to
+/// start at `start`.
+fn slice_backgrounds(
+    backgrounds: &[(Range<usize>, Hsla)],
+    start: usize,
+    end: usize,
+) -> Vec<(Range<usize>, Hsla)> {
+    slice_ranges(backgrounds, start, end, |range, color| (range, *color))
+}
+
 const CELL_PAD_PX: f32 = 16.0; // px_2 horizontal padding
 const CELL_MIN_PX: f32 = 48.0;
 const CELL_BORDER_PX: f32 = 1.0; // border_r_1 drawn by every column but the last
@@ -2412,9 +2587,75 @@ fn measure_table_columns(
     cx: &mut App,
 ) -> Vec<f32> {
     let text_style = window.text_style();
+    let rem_size = window.rem_size();
+    let mono_family = cx.theme().tokens.typography.mono.clone();
+    let inline_code = node_cx.style.inline_code_highlight();
+    let cached = table.column_widths_cache.0.lock().ok().and_then(|cache| {
+        cache
+            .as_ref()
+            .filter(|cached| {
+                cached.widths.len() == col_count
+                    && cached.text_style == text_style
+                    && cached.rem_size == rem_size
+                    && cached.mono_family == mono_family
+                    && cached.inline_code == inline_code
+                    && cached
+                        .text_system
+                        .upgrade()
+                        .is_some_and(|system| Arc::ptr_eq(&system, window.text_system()))
+            })
+            .cloned()
+    });
+    let measured = cached.unwrap_or_else(|| {
+        let (widths, custom_cells) =
+            measure_table_text_columns(table, col_count, node_cx, window, cx);
+        let measured = Arc::new(TableColumnWidths {
+            text_system: Arc::downgrade(window.text_system()),
+            text_style,
+            rem_size,
+            mono_family,
+            inline_code,
+            widths,
+            custom_cells,
+        });
+        if let Ok(mut cache) = table.column_widths_cache.0.lock() {
+            *cache = Some(measured.clone());
+        }
+        measured
+    });
+
+    // Resource-backed cells must be measured again, even when their text is
+    // unchanged. Keep callbacks outside the cache lock and do not retain their
+    // widths: a loaded image or a plugin can get narrower as well as wider.
+    let mut col_w = measured.widths.clone();
+    for &(row_ix, ix) in &measured.custom_cells {
+        let cell = &table.children[row_ix].children[ix];
+        let items = cell.children.inline_flow_items(None, &[], &[], node_cx, cx);
+        let width = super::inline_flow::intrinsic_width(&items, window, cx);
+        let border = if ix + 1 < col_count {
+            CELL_BORDER_PX
+        } else {
+            0.
+        };
+        col_w[ix] = col_w[ix].max(f32::from(width) + CELL_PAD_PX + border);
+    }
+    col_w
+}
+
+// The first measurement still visits all ordinary cells. This cache avoids
+// repeating that work; it is not a budget for the initial table layout.
+fn measure_table_text_columns(
+    table: &Table,
+    col_count: usize,
+    node_cx: &NodeContext,
+    window: &mut Window,
+    cx: &mut App,
+) -> (Vec<f32>, Vec<(usize, usize)>) {
+    let text_style = window.text_style();
     let font_size = text_style.font_size.to_pixels(window.rem_size());
     let mut col_w = vec![CELL_MIN_PX; col_count];
-    for row in table.children.iter() {
+    let mut custom_cells = Vec::new();
+    for (row_ix, row) in table.children.iter().enumerate() {
         for (ix, cell) in row.children.iter().enumerate() {
             let Some(slot) = col_w.get_mut(ix) else {
                 continue;
@@ -2425,14 +2666,7 @@ fn measure_table_columns(
                 .iter()
                 .any(|node| node.custom.is_some())
             {
-                let items = cell.children.inline_flow_items(&[], node_cx, cx);
-                let width = super::inline_flow::intrinsic_width(&items, window, cx);
-                let border = if ix + 1 < col_count {
-                    CELL_BORDER_PX
-                } else {
-                    0.
-                };
-                *slot = slot.max(f32::from(width) + CELL_PAD_PX + border);
+                custom_cells.push((row_ix, ix));
                 continue;
             }
             let text = cell.children.text();
@@ -2489,7 +2723,7 @@ fn measure_table_columns(
             *slot = slot.max(w + CELL_PAD_PX + border);
         }
     }
-    col_w
+    (col_w, custom_cells)
 }
 
 impl Paragraph {
@@ -2588,13 +2822,16 @@ impl BlockNode {
                     .join("\n")
             }
             BlockNode::List {
-                children, ordered, ..
+                children,
+                ordered,
+                start,
+                ..
             } => children
                 .iter()
                 .enumerate()
                 .map(|(i, child)| {
                     let prefix = if *ordered {
-                        format!("{}. ", i + 1)
+                        format!("{}. ", ordered_list_ordinal(*start, i))
                     } else {
                         "- ".to_string()
                     };
@@ -2672,7 +2909,12 @@ impl BlockNode {
             .items_start()
             .content_start()
             .when(!options.todo && checked.is_none(), |this| {
-                this.child(list_item_prefix(ix, options.ordered, options.depth))
+                this.child(list_item_prefix(
+                    ix,
+                    options.list_start,
+                    options.ordered,
+                    options.depth,
+                ))
             })
             .when_some(checked, |this, checked| {
                 // Todo list checkbox
@@ -2863,6 +3105,17 @@ impl BlockNode {
             _ => return div().into_any_element(),
         };
 
+        // Scroll mode is opted in via `style.table` overflow-x: scroll.
+        if matches!(node_cx.style.table().overflow.x, Some(Overflow::Scroll)) {
+            let col_count = table
+                .children
+                .iter()
+                .map(|row| row.children.len())
+                .max()
+                .unwrap_or(0);
+            return Self::render_scroll_table(table, col_count, options, node_cx, window, cx);
+        }
+
         // Per-column max text length (in chars), used to proportion the columns
         // in the default (wrap) layout.
         let mut col_lens: Vec<usize> = vec![];
@@ -2875,12 +3128,7 @@ impl BlockNode {
             }
         }
 
-        // Scroll mode is opted in via `style.table` overflow-x: scroll.
-        if matches!(node_cx.style.table().overflow.x, Some(Overflow::Scroll)) {
-            Self::render_scroll_table(table, col_lens.len(), options, node_cx, window, cx)
-        } else {
-            Self::render_wrap_table(table, &col_lens, options, node_cx, window, cx)
-        }
+        Self::render_wrap_table(table, &col_lens, options, node_cx, window, cx)
     }
 
     /// Horizontally scrollable table layout (opt-in via `style.table`
@@ -3043,7 +3291,7 @@ impl BlockNode {
                 div()
                     .id(block_element_id("table-actions", table.span, options.ix))
                     .mt_1()
-                    .child(f(&table.table_data(), window, cx))
+                    .child(f(&table.cached_table_data(), window, cx))
             }))
             .into_any_element()
     }
@@ -3138,7 +3386,7 @@ impl BlockNode {
                 div()
                     .id(block_element_id("table-actions", table.span, options.ix))
                     .mt_1()
-                    .child(f(&table.table_data(), window, cx))
+                    .child(f(&table.cached_table_data(), window, cx))
             }))
             .into_any_element()
     }
@@ -3186,16 +3434,14 @@ impl BlockNode {
                     _ => (rems(1.), FontWeight::NORMAL),
                 };
 
-                let mut text_size = text_size.to_pixels(node_cx.style.heading_base_font_size());
-                if let Some(size) = node_cx.style.heading_font_size(*level) {
-                    text_size = size;
-                }
+                let text_size = text_size.to_pixels(px(14.));
 
                 div()
                     .pb(rems(0.3))
                     .whitespace_normal()
                     .text_size(text_size)
                     .font_weight(font_weight)
+                    .refine_style(&node_cx.style.heading(*level))
                     .child(children.render(
                         span.map(|span| TextLeafKey::block(span.start)),
                         node_cx,
@@ -3222,7 +3468,10 @@ impl BlockNode {
                 mb,
             ),
             BlockNode::List {
-                children, ordered, ..
+                children,
+                ordered,
+                start,
+                ..
             } => div()
                 .w_full()
                 .min_w_0()
@@ -3239,6 +3488,7 @@ impl BlockNode {
                             NodeRenderOptions {
                                 ix,
                                 ordered: *ordered,
+                                list_start: *start,
                                 ..options
                             },
                             node_cx,
@@ -3395,7 +3645,7 @@ mod tests {
                 ],
                 ..Default::default()
             };
-            let items = paragraph.inline_flow_items(&[], &node_cx, cx);
+            let items = paragraph.inline_flow_items(None, &[], &[], &node_cx, cx);
             let InlineFlowItem::Object { style, link, .. } = &items[0] else {
                 panic!()
             };
@@ -3435,23 +3685,231 @@ mod tests {
             ),
         ));
         let table = table_of(
-            vec![vec![TableCell {
-                children: Paragraph {
-                    children: vec![InlineNode::custom(MarkdownNode::new("test", ()).text("x"))],
-                    ..Default::default()
-                },
-                width: None,
-            }]],
+            vec![
+                vec![plain_cell("ordinary text")],
+                vec![TableCell {
+                    children: Paragraph {
+                        children: vec![InlineNode::custom(MarkdownNode::new("test", ()).text("x"))],
+                        ..Default::default()
+                    },
+                    width: None,
+                }],
+            ],
             vec![],
         );
         in_prepaint(&mut app, move |window, cx| {
-            for expected in [400, 600] {
+            let mut cached = None;
+            for expected in [400, 600, 10, 400] {
                 width.store(expected, std::sync::atomic::Ordering::Relaxed);
+                let measured = measure_table_columns(&table, 1, &node_cx, window, cx)[0];
+                let current = cached_column_widths(&table);
                 assert_eq!(
-                    measure_table_columns(&table, 1, &node_cx, window, cx)[0],
-                    expected as f32 + CELL_PAD_PX
+                    measured,
+                    current.widths[0].max(expected as f32 + CELL_PAD_PX)
                 );
+                assert_eq!(current.custom_cells, vec![(1, 0)]);
+                if let Some(cached) = cached.replace(current.clone()) {
+                    assert!(Arc::ptr_eq(&cached, &current));
+                }
             }
+        });
+    }
+
+    fn cached_column_widths(table: &Table) -> Arc<TableColumnWidths> {
+        table.column_widths_cache.0.lock().unwrap().clone().unwrap()
+    }
+
+    #[test]
+    fn table_columns_cache_preserves_plain_widths_and_clones() {
+        use crate::text::inline::test_draw::in_prepaint;
+        use crate::text::inline::test_fonts::{BODY, WideMonoTextSystem, record_shaped_lines};
+        use gpui::{Refineable as _, TestApp, TextStyle};
+
+        let long = "é界".repeat(2048);
+        let table = table_of(
+            vec![
+                vec![plain_cell(&format!(" \t{long} \nshort\n ")), plain_cell("")],
+                vec![plain_cell("short")],
+                vec![],
+                vec![plain_cell(""), plain_cell("a\nabcdefghijklmnop")],
+            ],
+            vec![],
+        );
+        let uncached = table.clone();
+        let node_cx = NodeContext::default();
+        let mut app = TestApp::with_text_system(Arc::new(WideMonoTextSystem));
+        let (table, node_cx, cached) = in_prepaint(&mut app, move |window, cx| {
+            window.set_rem_size(px(20.));
+            let style = TextStyle {
+                font_family: BODY.into(),
+                font_size: rems(1.).into(),
+                ..Default::default()
+            };
+            let cached =
+                window.with_text_style(Some(style.subtract(&Default::default())), |window| {
+                    let (widths, shaped) = record_shaped_lines(|| {
+                        measure_table_columns(&table, 2, &node_cx, window, cx)
+                    });
+                    assert_eq!(widths, vec![40960. + CELL_PAD_PX + CELL_BORDER_PX, 176.]);
+                    assert!(shaped.iter().any(|line| line == &long));
+                    assert_eq!(
+                        table, uncached,
+                        "derived widths do not change table equality"
+                    );
+                    assert!(uncached.column_widths_cache.0.lock().unwrap().is_none());
+
+                    let cached = cached_column_widths(&table);
+                    let cloned = table.clone();
+                    for same in [&table, &cloned] {
+                        let (again, shaped) = record_shaped_lines(|| {
+                            measure_table_columns(same, 2, &node_cx, window, cx)
+                        });
+                        assert_eq!(again, widths);
+                        assert!(shaped.is_empty());
+                        assert!(Arc::ptr_eq(&cached, &cached_column_widths(same)));
+                    }
+
+                    // A different column count changes which cells draw borders.
+                    assert_eq!(
+                        measure_table_columns(&cloned, 3, &node_cx, window, cx),
+                        vec![widths[0], widths[1] + CELL_BORDER_PX, CELL_MIN_PX]
+                    );
+                    assert!(!Arc::ptr_eq(&cached, &cached_column_widths(&cloned)));
+                    assert!(Arc::ptr_eq(&cached, &cached_column_widths(&table)));
+                    assert!(
+                        measure_table_columns(&Table::default(), 0, &node_cx, window, cx)
+                            .is_empty()
+                    );
+                    cached
+                });
+            (table, node_cx, cached)
+        });
+        // A parsed table can be rendered in another window. Do not reuse a
+        // pixel-width cache from a different window's text system.
+        in_prepaint(&mut app, move |window, cx| {
+            window.set_rem_size(cached.rem_size);
+            window.with_text_style(
+                Some(cached.text_style.subtract(&Default::default())),
+                |window| {
+                    measure_table_columns(&table, 2, &node_cx, window, cx);
+                    assert!(!Arc::ptr_eq(&cached, &cached_column_widths(&table)));
+                },
+            );
+        });
+    }
+
+    #[test]
+    fn table_columns_cache_tracks_typography() {
+        use crate::text::inline::test_draw::in_prepaint;
+        use crate::text::inline::test_fonts::{BODY, MONO, WideMonoTextSystem};
+        use gpui::{Refineable as _, TestApp, TextStyle};
+
+        let code = "0123456789";
+        let mut paragraph = Paragraph::default();
+        paragraph
+            .push(InlineNode::new(code).marks(vec![(0..code.len(), TextMark::default().code())]));
+        let table = table_of(
+            vec![vec![
+                plain_cell(code),
+                TableCell {
+                    children: paragraph,
+                    width: None,
+                },
+            ]],
+            vec![],
+        );
+        let base = TextStyle {
+            font_family: BODY.into(),
+            font_size: rems(1.).into(),
+            ..Default::default()
+        };
+        let mut larger = base.clone();
+        larger.font_size = rems(2.).into();
+        let mut bold = base.clone();
+        bold.font_weight = FontWeight::BOLD;
+        let mut mono = base.clone();
+        mono.font_family = MONO.into();
+        let normal_code = HighlightStyle::default();
+        let bold_code = HighlightStyle {
+            font_weight: Some(FontWeight::BOLD),
+            ..Default::default()
+        };
+        let mut app = TestApp::with_text_system(Arc::new(WideMonoTextSystem));
+        in_prepaint(&mut app, move |window, cx| {
+            let mut previous = None;
+            for (style, rem_size, family, inline_code, expected) in [
+                (base.clone(), 20., MONO, normal_code, [117., 195.]),
+                (base.clone(), 30., MONO, normal_code, [167., 282.5]),
+                (larger, 20., MONO, normal_code, [217., 370.]),
+                (bold, 20., MONO, normal_code, [167., 238.75]),
+                (mono, 20., MONO, normal_code, [217., 195.]),
+                (base.clone(), 20., MONO, normal_code, [117., 195.]),
+                (base.clone(), 20., BODY, normal_code, [117., 107.5]),
+                (base.clone(), 20., MONO, normal_code, [117., 195.]),
+                (base, 20., MONO, bold_code, [117., 238.75]),
+            ] {
+                let mut theme = crate::Theme::default();
+                theme.tokens.typography.mono = family.into();
+                cx.set_global(theme);
+                window.set_rem_size(px(rem_size));
+                let node_cx = NodeContext {
+                    style: Arc::new(TextViewStyle::default().with_inline_code(inline_code)),
+                    ..Default::default()
+                };
+                window.with_text_style(Some(style.subtract(&Default::default())), |window| {
+                    let widths = measure_table_columns(&table, 2, &node_cx, window, cx);
+                    for (width, expected) in widths.iter().zip(expected) {
+                        assert!((width - expected).abs() < 0.01, "{width} != {expected}");
+                    }
+                    let cached = cached_column_widths(&table);
+                    if let Some(previous) = previous.replace(cached.clone()) {
+                        assert!(!Arc::ptr_eq(&previous, &cached));
+                    }
+                    assert_eq!(
+                        measure_table_columns(&table, 2, &node_cx, window, cx),
+                        widths
+                    );
+                    assert!(Arc::ptr_eq(&cached, &cached_column_widths(&table)));
+                });
+            }
+        });
+    }
+
+    #[test]
+    fn table_columns_cache_is_rebuilt_for_reparsed_tables() {
+        use crate::text::format::markdown;
+        use crate::text::inline::test_draw::in_prepaint;
+        use crate::text::inline::test_fonts::{BODY, WideMonoTextSystem};
+        use gpui::{Refineable as _, TestApp, TextStyle};
+
+        let mut node_cx = NodeContext::default();
+        let mut app = TestApp::with_text_system(Arc::new(WideMonoTextSystem));
+        in_prepaint(&mut app, move |window, cx| {
+            let style = TextStyle {
+                font_family: BODY.into(),
+                font_size: px(20.).into(),
+                ..Default::default()
+            };
+            window.with_text_style(Some(style.subtract(&Default::default())), |window| {
+                let mut previous = None;
+                for (text, expected) in [("longer cell", 126.), ("x", CELL_MIN_PX)] {
+                    let source = format!("| h |\n| - |\n| {text} |\n");
+                    let document = markdown::parse(&source, &mut node_cx).unwrap();
+                    let BlockNode::Table(table) = &document.blocks[0] else {
+                        panic!("expected a parsed table");
+                    };
+                    assert!(table.column_widths_cache.0.lock().unwrap().is_none());
+                    assert_eq!(
+                        measure_table_columns(table, 1, &node_cx, window, cx),
+                        vec![expected]
+                    );
+                    let cached = cached_column_widths(table);
+                    if let Some(previous) = previous.replace(cached.clone()) {
+                        assert!(!Arc::ptr_eq(&previous, &cached));
+                    }
+                    assert_eq!(document.source.as_ref(), source);
+                }
+            });
         });
     }
 
@@ -3476,6 +3934,8 @@ mod tests {
             }],
             column_aligns: vec![],
             span: None,
+            table_data_cache: TableDataCache::default(),
+            column_widths_cache: TableColumnWidthsCache::default(),
         };
         let node_cx = NodeContext::default();
 
@@ -3702,6 +4162,7 @@ mod tests {
     fn unordered_list_selected_source_prefixes_dash() {
         let list = BlockNode::List {
             ordered: false,
+            start: None,
             span: None,
             children: vec![
                 BlockNode::ListItem {
@@ -3725,19 +4186,67 @@ mod tests {
     }
 
     #[test]
-    fn ordered_list_selected_source_prefixes_numbers() {
+    fn ordered_list_selected_source_preserves_start() {
         let list = BlockNode::List {
             ordered: true,
+            start: Some(3),
             span: None,
             children: vec![
                 BlockNode::ListItem {
-                    children: vec![BlockNode::Paragraph(selected_paragraph("first"))],
+                    children: vec![BlockNode::Paragraph(selected_paragraph("three"))],
                     spread: false,
                     checked: None,
                     span: None,
                 },
                 BlockNode::ListItem {
-                    children: vec![BlockNode::Paragraph(selected_paragraph("second"))],
+                    children: vec![BlockNode::Paragraph(selected_paragraph("four"))],
+                    spread: false,
+                    checked: None,
+                    span: None,
+                },
+            ],
+        };
+        assert_eq!(list.to_markdown(), "3. three\n4. four");
+        assert_eq!(
+            list.selected_text(SelectionFormat::Source),
+            "3. three\n4. four\n"
+        );
+    }
+
+    #[test]
+    fn ordered_list_selected_source_preserves_nested_starts_and_continuations() {
+        let nested = BlockNode::List {
+            ordered: true,
+            start: Some(4),
+            span: None,
+            children: vec![
+                BlockNode::ListItem {
+                    children: vec![BlockNode::Paragraph(selected_paragraph("nested"))],
+                    spread: false,
+                    checked: None,
+                    span: None,
+                },
+                BlockNode::ListItem {
+                    children: vec![BlockNode::Paragraph(selected_paragraph("again"))],
+                    spread: false,
+                    checked: None,
+                    span: None,
+                },
+            ],
+        };
+        let nested_list = BlockNode::List {
+            ordered: true,
+            start: Some(3),
+            span: None,
+            children: vec![
+                BlockNode::ListItem {
+                    children: vec![BlockNode::Paragraph(selected_paragraph("three")), nested],
+                    spread: false,
+                    checked: None,
+                    span: None,
+                },
+                BlockNode::ListItem {
+                    children: vec![BlockNode::Paragraph(selected_paragraph("four"))],
                     spread: false,
                     checked: None,
                     span: None,
@@ -3745,8 +4254,35 @@ mod tests {
             ],
         };
         assert_eq!(
-            list.selected_text(SelectionFormat::Source),
-            "1. first\n2. second\n"
+            nested_list.selected_text(SelectionFormat::Source),
+            "3. three\n   4. nested\n   5. again\n4. four\n"
+        );
+
+        let loose_list = BlockNode::List {
+            ordered: true,
+            start: Some(3),
+            span: None,
+            children: vec![
+                BlockNode::ListItem {
+                    children: vec![
+                        BlockNode::Paragraph(selected_paragraph("loose")),
+                        BlockNode::Paragraph(selected_paragraph("continuation")),
+                    ],
+                    spread: true,
+                    checked: None,
+                    span: None,
+                },
+                BlockNode::ListItem {
+                    children: vec![BlockNode::Paragraph(selected_paragraph("four"))],
+                    spread: false,
+                    checked: None,
+                    span: None,
+                },
+            ],
+        };
+        assert_eq!(
+            loose_list.selected_text(SelectionFormat::Source),
+            "3. loose\n   continuation\n4. four\n"
         );
     }
 
@@ -3757,6 +4293,7 @@ mod tests {
         // - two
         let nested = BlockNode::List {
             ordered: false,
+            start: None,
             span: None,
             children: vec![BlockNode::ListItem {
                 children: vec![BlockNode::Paragraph(selected_paragraph("nested"))],
@@ -3767,6 +4304,7 @@ mod tests {
         };
         let list = BlockNode::List {
             ordered: false,
+            start: None,
             span: None,
             children: vec![
                 BlockNode::ListItem {
@@ -3793,6 +4331,7 @@ mod tests {
     fn task_list_selected_source_restores_checkboxes() {
         let list = BlockNode::List {
             ordered: false,
+            start: None,
             span: None,
             children: vec![
                 BlockNode::ListItem {
@@ -3844,6 +4383,8 @@ mod tests {
             ],
             column_aligns: vec![ColumnumnAlign::Left, ColumnumnAlign::Right],
             span: None,
+            table_data_cache: TableDataCache::default(),
+            column_widths_cache: TableColumnWidthsCache::default(),
         };
         let block = BlockNode::Table(table);
         assert_eq!(
@@ -3869,6 +4410,8 @@ mod tests {
                 .collect(),
             column_aligns,
             span: None,
+            table_data_cache: TableDataCache::default(),
+            column_widths_cache: TableColumnWidthsCache::default(),
         }
     }
 
@@ -3945,6 +4488,20 @@ mod tests {
         assert_eq!(data.rows, vec![vec!["Alice", "30"]]);
         assert_eq!(data.markdown, table.to_markdown());
         assert_eq!(data.span, Some(4..42));
+    }
+
+    #[test]
+    fn cloned_table_keeps_cached_table_data() {
+        // Streaming appends deep-clone every block; the clone must reuse the
+        // cached snapshot instead of rebuilding it.
+        let table = table_of(
+            vec![vec![plain_cell("Name")], vec![plain_cell("Alice")]],
+            vec![ColumnumnAlign::Left],
+        );
+        let data = table.cached_table_data();
+
+        let cloned = table.clone();
+        assert!(Arc::ptr_eq(&data, &cloned.cached_table_data()));
     }
 
     #[test]
@@ -4070,6 +4627,7 @@ mod tests {
                 BlockNode::Paragraph(selected_paragraph("start")),
                 BlockNode::List {
                     ordered: true,
+                    start: Some(3),
                     children: vec![],
                     span: Some(Span {
                         start: list_start,
@@ -4212,6 +4770,7 @@ mod tests {
                 selected_code_block("let x = 1;\n", Some("rust")),
                 BlockNode::List {
                     ordered: true,
+                    start: Some(1),
                     span: None,
                     children: vec![
                         BlockNode::ListItem {
