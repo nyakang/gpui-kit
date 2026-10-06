@@ -128,3 +128,11 @@ API changes are introduced. The new Zed revision passed Windows GPUI checks,
 four core virtual-drag tests and nine mock native file-export tests. NyaTerm
 integration was checked with local source overrides before pin publication;
 final pinned workspace checks are recorded in NyaTerm's drag-export report.
+
+
+## 2026-10-07 native drag input follow-up
+
+Align all Zed sources with d7efcc2708a0f95418a0484318fb180b22adb5bf,
+which adds scoped source-window input handoff for the native file-drag STA.
+No Kit/Base behavior changes. Zed checks and its 10 native export / 4 core
+virtual-drag tests pass; NyaTerm performs pinned integration validation.

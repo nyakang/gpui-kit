@@ -60,12 +60,12 @@ story = { path = "crates/story" }
 
 # NyaTerm consumes one coherent Zed fork revision so its dynamic-texture and
 # hidden-cursor APIs cannot be mixed with a published gpui-pre snapshot.
-gpui = { version = "=0.2.2", git = "https://github.com/nyakang/zed", rev = "164d61d92987889e8c3dedf21ae63d9240a4306e" }
-gpui_platform = { git = "https://github.com/nyakang/zed", rev = "164d61d92987889e8c3dedf21ae63d9240a4306e", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui_web = { git = "https://github.com/nyakang/zed", rev = "164d61d92987889e8c3dedf21ae63d9240a4306e" }
-gpui_macros = { version = "0.1.0", git = "https://github.com/nyakang/zed", rev = "164d61d92987889e8c3dedf21ae63d9240a4306e" }
-reqwest_client = { git = "https://github.com/nyakang/zed", rev = "164d61d92987889e8c3dedf21ae63d9240a4306e" }
-sum-tree = { package = "sum_tree", git = "https://github.com/nyakang/zed", rev = "164d61d92987889e8c3dedf21ae63d9240a4306e" }
+gpui = { version = "=0.2.2", git = "https://github.com/nyakang/zed", rev = "d7efcc2708a0f95418a0484318fb180b22adb5bf" }
+gpui_platform = { git = "https://github.com/nyakang/zed", rev = "d7efcc2708a0f95418a0484318fb180b22adb5bf", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
+gpui_web = { git = "https://github.com/nyakang/zed", rev = "d7efcc2708a0f95418a0484318fb180b22adb5bf" }
+gpui_macros = { version = "0.1.0", git = "https://github.com/nyakang/zed", rev = "d7efcc2708a0f95418a0484318fb180b22adb5bf" }
+reqwest_client = { git = "https://github.com/nyakang/zed", rev = "d7efcc2708a0f95418a0484318fb180b22adb5bf" }
+sum-tree = { package = "sum_tree", git = "https://github.com/nyakang/zed", rev = "d7efcc2708a0f95418a0484318fb180b22adb5bf" }
 reqwest = { git = "https://github.com/zed-industries/reqwest.git", rev = "33bc764aa15ff7b200bf7c93bd96e24878d53e14", package = "zed-reqwest", version = "0.12.15-zed", default-features = false, features = [
     "charset",
     "http2",
