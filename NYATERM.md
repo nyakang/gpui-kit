@@ -115,3 +115,16 @@ lockfile. Formatting checks pass for all three changed Rust files.
 `crates/component/src/form/tests.rs` and `crates/component/src/styled.rs` under
 both Rust 1.97.1 and 1.98.1. Both files are byte-identical to the upstream
 baseline; this merge leaves those unrelated formatting differences untouched.
+
+
+## 2026-10-06 coherent deferred-drag GPUI pin
+
+Move every Zed workspace dependency from
+0544bd292a52fed9718e1ba9739c4ac82c41d223 to
+164d61d92987889e8c3dedf21ae63d9240a4306e on nyakang/zed branch nyaterm.
+NyaTerm consumes the same revision directly, preventing duplicate GPUI source
+identities and incompatible Entity/Window types. No Kit/Base behavior or public
+API changes are introduced. The new Zed revision passed Windows GPUI checks,
+four core virtual-drag tests and nine mock native file-export tests. NyaTerm
+integration was checked with local source overrides before pin publication;
+final pinned workspace checks are recorded in NyaTerm's drag-export report.
