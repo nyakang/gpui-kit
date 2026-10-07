@@ -166,3 +166,11 @@ accounting and an application-wide three-operation macOS promise queue.
 Windows native export suite: 13 passed. macOS branch CI and interactive Finder
 validation are tracked in the Zed patch notes. Pin checker passes; no component
 behavior or registry dependency versions changed.
+
+
+## 2026-10-07 final enumeration failure pin
+
+Move every Zed revision to 400d43cd62b6499c77a1400d6f83116d9845e187.
+Windows enumeration failures remain failed during synchronous consumer release;
+13 native tests passed and preceding three-platform CI succeeded. Pin checker
+passes. No Kit source or registry-version changes.
