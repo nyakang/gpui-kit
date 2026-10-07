@@ -136,3 +136,13 @@ Align all Zed sources with d7efcc2708a0f95418a0484318fb180b22adb5bf,
 which adds scoped source-window input handoff for the native file-drag STA.
 No Kit/Base behavior changes. Zed checks and its 10 native export / 4 core
 virtual-drag tests pass; NyaTerm performs pinned integration validation.
+
+
+## 2026-10-07 cross-platform deferred export contracts
+
+Align every Zed dependency with 80dc747786822116ba51deae57b3ec2fa307b775
+on nyakang/zed branch nyaterm. This adds validated virtual directory trees,
+Finder file promises and Linux Xdnd local URI copies; Kit/Base behavior remains
+unchanged. Zed's Windows virtual suite (6 tests) and native export suite (11 tests)
+pass. Zed macOS/Linux native compile runs in branch CI; NyaTerm validates pinned
+application integration separately.
