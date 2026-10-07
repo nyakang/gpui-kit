@@ -146,3 +146,13 @@ Finder file promises and Linux Xdnd local URI copies; Kit/Base behavior remains
 unchanged. Zed's Windows virtual suite (6 tests) and native export suite (11 tests)
 pass. Zed macOS/Linux native compile runs in branch CI; NyaTerm validates pinned
 application integration separately.
+
+
+## 2026-10-07 native export ABI validation follow-up
+
+Move all Zed dependencies coherently to 1322967fc37535ca307c539181fc16ad3d5334e9.
+This includes the native-compiled AppKit delegate ABI correction, a guarded Xdnd
+completion and a macOS runtime dispatch regression. The corrected preceding Zed
+revision passed native macOS, Linux and Windows checks. Pin coherence passes;
+final branch CI runs the added dispatch test. There is no Kit/Base source change
+or unrelated registry-version refresh.
