@@ -156,3 +156,13 @@ completion and a macOS runtime dispatch regression. The corrected preceding Zed
 revision passed native macOS, Linux and Windows checks. Pin coherence passes;
 final branch CI runs the added dispatch test. There is no Kit/Base source change
 or unrelated registry-version refresh.
+
+
+## 2026-10-07 bounded native drag delivery
+
+Align every Zed revision with d24d3775264eac79ef73334925c3f1b97fa09b4b.
+Consumes optional typed drag lifecycle, Windows one-shot completion/idle
+accounting and an application-wide three-operation macOS promise queue.
+Windows native export suite: 13 passed. macOS branch CI and interactive Finder
+validation are tracked in the Zed patch notes. Pin checker passes; no component
+behavior or registry dependency versions changed.
