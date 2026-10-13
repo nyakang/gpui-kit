@@ -12,7 +12,7 @@ GPUI Kit is built on top of GPUI. We do not aim to fork GPUI or maintain a separ
 
 GPUI provides the core rendering, windowing, and platform capabilities. GPUI Kit focuses on the application layer, including UI components, application frameworks, developer tooling, and native integrations.
 
-Changes to GPUI's core APIs or platform behavior should be contributed upstream. 
+Changes to GPUI's core APIs or platform behavior should be contributed upstream.
 
 Extensions that can be implemented on top of GPUI without modifying it are welcome in GPUI Kit.
 
