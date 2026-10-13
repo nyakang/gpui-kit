@@ -1,0 +1,45 @@
+name: NyaTerm branch
+
+# Upstream 0.7.0 uses the published gpui-pre snapshot. NyaTerm needs its
+# dynamic-texture and hidden-cursor patches, so this branch pins every
+# Zed-derived workspace crate to one matching fork revision.
+
+on:
+  push:
+    branches: ["nyaterm"]
+  pull_request:
+    branches: ["nyaterm"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate:
+    name: base + gpui-base
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # gpui_platform is built with x11, wayland and font-kit, so GPUI's system
+      # libraries have to be present. Reuse the repository's own script rather
+      # than a hand-kept package list, so a rebase picks up upstream's changes.
+      - name: Install system dependencies
+        run: script/bootstrap
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Verify the pinned Zed fork
+        run: bun script/check-gpui-pin.ts
+
+      - name: Base crate tests
+        run: cargo test -p gpui-base
+
+      - name: Scrollbar reveal tests
+        run: cargo test -p gpui-base reveal
+
+      - name: Popup menu appearance tests
+        run: cargo test -p gpui-component menu::popup_menu --lib
+
+      - name: Component crate check
+        run: cargo check -p gpui-component
