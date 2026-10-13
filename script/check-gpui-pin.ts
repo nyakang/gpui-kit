@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Verify that the workspace pins every `gpui-pre-*` crate to an exact version.
+ * Verify that the workspace pins every Zed-derived GPUI crate coherently.
  *
  * The published gpui-kit crates carry the workspace's requirements to
  * crates.io. A caret requirement lets the weekly gpui-pre release move an
@@ -28,6 +28,15 @@ interface Dependency {
   package: string;
   version: string | undefined;
 }
+
+interface GitDependency {
+  alias: string;
+  git: string | undefined;
+  rev: string | undefined;
+}
+
+const NYATERM_ZED = "https://github.com/nyakang/zed";
+const ZED_ALIASES = ["gpui", "gpui_platform", "gpui_web", "gpui_macros", "reqwest_client", "sum-tree"];
 
 function snapshotDependencies(manifestPath: string): Dependency[] {
   const manifest = Bun.TOML.parse(readFileSync(manifestPath, "utf8")) as {
@@ -69,11 +78,45 @@ function problems(dependencies: Dependency[]): string[] {
   return found;
 }
 
+function forkProblems(manifestPath: string): string[] {
+  const manifest = Bun.TOML.parse(readFileSync(manifestPath, "utf8")) as {
+    workspace?: { dependencies?: Record<string, unknown> };
+  };
+  const dependencies: GitDependency[] = ZED_ALIASES.map((alias) => {
+    const spec = manifest.workspace?.dependencies?.[alias];
+    const dependency = typeof spec === "object" && spec !== null ? spec as Record<string, unknown> : {};
+    return {
+      alias,
+      git: typeof dependency.git === "string" ? dependency.git : undefined,
+      rev: typeof dependency.rev === "string" ? dependency.rev : undefined,
+    };
+  });
+  const found: string[] = [];
+  for (const dependency of dependencies) {
+    if (dependency.git !== NYATERM_ZED) {
+      found.push(`${dependency.alias} is not pinned to ${NYATERM_ZED}`);
+    }
+    if (!dependency.rev?.match(/^[0-9a-f]{40}$/)) {
+      found.push(`${dependency.alias} does not use a full 40-character revision`);
+    }
+  }
+  const revisions = new Set(dependencies.map((dependency) => dependency.rev).filter(Boolean));
+  if (revisions.size > 1) {
+    found.push(`the NyaTerm Zed dependencies use more than one revision: ${[...revisions].join(", ")}`);
+  }
+  return found;
+}
+
 const manifestPath = process.argv[2] ?? join(REPO_ROOT, MANIFEST);
-const found = problems(snapshotDependencies(manifestPath));
+const snapshot = snapshotDependencies(manifestPath);
+const found = snapshot.length > 0 ? problems(snapshot) : forkProblems(manifestPath);
 if (found.length > 0) {
   for (const problem of found) console.error(`::error file=${MANIFEST}::${problem}`);
   console.error(`\n${MANIFEST} must pin every ${SNAPSHOT_PREFIX}-* crate to the exact snapshot gpui-kit was built against.`);
   process.exit(1);
 }
-console.log(`${MANIFEST} pins the ${SNAPSHOT_PREFIX}-* crates exactly`);
+console.log(
+  snapshot.length > 0
+    ? `${MANIFEST} pins the ${SNAPSHOT_PREFIX}-* crates exactly`
+    : `${MANIFEST} pins every NyaTerm Zed dependency to one revision`,
+);
