@@ -50,6 +50,7 @@ pub struct ContextMenu<E: ParentElement + Styled + Sized> {
     // This is not in use, just for style refinement forwarding.
     _ignore_style: StyleRefinement,
     anchor: Anchor,
+    capture_right_click: bool,
 }
 
 impl<E: ParentElement + Styled> ContextMenu<E> {
@@ -60,8 +61,16 @@ impl<E: ParentElement + Styled> ContextMenu<E> {
             element: Some(element),
             menu: None,
             anchor: Anchor::TopLeft,
+            capture_right_click: false,
             _ignore_style: StyleRefinement::default(),
         }
+    }
+
+    /// Open on capture when child rows consume the right-click bubble.
+    /// The menu builder still runs after dispatch so rows can set their target.
+    pub fn capture_right_click(mut self, capture: bool) -> Self {
+        self.capture_right_click = capture;
+        self
     }
 
     /// Build the context menu using the given builder function.
@@ -399,9 +408,16 @@ impl<E: ParentElement + Styled + IntoElement + 'static> Element for ContextMenu<
         // Register before child paint so bubbling reaches the innermost
         // trigger first, after its input has had a chance to take focus.
         let hitbox = hitbox.clone();
+        let capture_right_click = self.capture_right_click;
         window.on_mouse_event(move |event: &MouseDownEvent, phase, window, cx| {
-            if phase.bubble() && event.button == MouseButton::Right && hitbox.is_hovered(window) {
-                cx.stop_propagation();
+            if ((capture_right_click && phase.capture())
+                || (!capture_right_click && phase.bubble()))
+                && event.button == MouseButton::Right
+                && hitbox.is_hovered(window)
+            {
+                if !capture_right_click {
+                    cx.stop_propagation();
+                }
                 open_menu(&shared_state, &builder, event.position, window, cx);
             }
         });
@@ -539,6 +555,7 @@ mod tests {
     use super::*;
     use crate::menu::PopupMenuItem;
     use crate::theme::Theme;
+    use gpui::prelude::FluentBuilder;
     use gpui::{
         Context, FocusHandle, IntoElement, KeyBinding, Render, TestAppContext, VisualTestContext,
         actions, point, px,
@@ -553,6 +570,7 @@ mod tests {
     struct TestRoot {
         content_focus: FocusHandle,
         received: Rc<Cell<bool>>,
+        swallow_right_click: bool,
     }
 
     impl Render for TestRoot {
@@ -575,7 +593,13 @@ mod tests {
                             div()
                                 .id("tab")
                                 .size_full()
-                                .context_menu(|menu, _, _| menu.menu("Close", Box::new(RemoveTab))),
+                                .when(self.swallow_right_click, |this| {
+                                    this.on_mouse_down(MouseButton::Right, |_, _, cx| {
+                                        cx.stop_propagation()
+                                    })
+                                })
+                                .context_menu(|menu, _, _| menu.menu("Close", Box::new(RemoveTab)))
+                                .capture_right_click(self.swallow_right_click),
                         ),
                 )
         }
@@ -583,6 +607,15 @@ mod tests {
 
     #[gpui::test]
     fn action_bubbles_from_trigger_and_focus_restores_on_dismiss(cx: &mut TestAppContext) {
+        assert_action_and_restored_focus(cx, false);
+    }
+
+    #[gpui::test]
+    fn captured_menu_survives_a_child_consuming_the_right_click_bubble(cx: &mut TestAppContext) {
+        assert_action_and_restored_focus(cx, true);
+    }
+
+    fn assert_action_and_restored_focus(cx: &mut TestAppContext, swallow_right_click: bool) {
         cx.update(|cx| {
             cx.set_global(Theme::default());
             super::super::popup_menu::init(cx);
@@ -597,6 +630,7 @@ mod tests {
                 TestRoot {
                     content_focus,
                     received,
+                    swallow_right_click,
                 }
             }
         });
