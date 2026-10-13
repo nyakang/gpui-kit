@@ -237,3 +237,17 @@ Validation is on Windows; native macOS/Linux checks are delegated to the
 branch workflow. Interactive GUI/file-drop and real-server authentication
 checks were not performed by this update. Their outcomes must not be inferred
 from scripted peers or compile checks.
+
+## 2026-10-13 list-owned context menu compatibility
+
+Upstream now registers the right-click bubble listener before child painting.
+Rows that consume that bubble can prevent a list-owned menu from opening.
+Add opt-in `ContextMenu::capture_right_click(true)` for such consumers, leaving
+the upstream default unchanged. Capture does not stop child dispatch; the
+existing deferred menu builder still observes the row target set during that
+dispatch. NyaTerm enables this option in its context-menu wrapper.
+
+Windows Component library tests: 665 passed, including the new consumed-bubble
+regression proving keyboard action dispatch and dismissal focus restoration.
+Component all-target Clippy and workspace formatting checks passed. The existing
+NyaTerm list-menu/dialog regression is also used to validate this integration.
