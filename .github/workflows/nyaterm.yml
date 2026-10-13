@@ -43,3 +43,9 @@ jobs:
 
       - name: Component crate check
         run: cargo check -p gpui-component
+
+      - name: Complete component regressions
+        run: cargo test -p gpui-component --lib
+
+      - name: Native GPUI facade exports
+        run: cargo test -p gpui-kit --test exports
