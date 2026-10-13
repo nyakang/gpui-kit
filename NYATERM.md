@@ -5,7 +5,7 @@ to `gpui-kit` on top of an unmodified upstream base.
 
 - Fork: <https://github.com/nyakang/gpui-kit>
 - Upstream: <https://github.com/longbridge/gpui-kit>
-- Base revision: `ec6b87f5d9d04a38e9c9bbcf6e389a45a570afa4` (upstream `main`, `gpui-kit` 0.7.0, 2026-10-01)
+- Base revision: `369f7a8f5a6602da980f008cf726467588ad517f` (upstream `main`, 2026-10-13)
 - Branch: `nyaterm`
 
 NyaTerm uses this crate through the stable `nyaterm-ui` facade, so these are the
@@ -174,3 +174,66 @@ Move every Zed revision to 400d43cd62b6499c77a1400d6f83116d9845e187.
 Windows enumeration failures remain failed during synchronous consumer release;
 13 native tests passed and preceding three-platform CI succeeded. Pin checker
 passes. No Kit source or registry-version changes.
+
+## 2026-10-13 upstream rebase
+
+Upstream `main` is fixed at `369f7a8f5a6602da980f008cf726467588ad517f`.
+Previous published NyaTerm head: `c4f044e6a140a8320ed90192fd0508e91da20855`.
+The previous branch is retained locally as `backup/nyaterm-20261013`.
+
+The effective old-base-to-fork tree (including merge-only resolutions) was
+reconstructed byte-for-byte as separate concern commits before rebasing.
+Old upstream merge history was flattened; no functional net change was discarded
+except the explicitly documented upstream replacements below. The concern
+commits and subsequent compatibility fixes remain separate.
+
+| Concern | Reconstructed commit on old base |
+| --- | --- |
+| coherent GPUI dependencies | `b080aee1147b77483acf550057a5c63efc5b47ac` |
+| GPUI indentation compatibility | `f435f9052abb04c9e819841165bb1d05c2980e6c` |
+| viewport scrollbar reveal | `bb52b5f0a74fa5f0d5a695dfdee277df9f45e63f` |
+| macro crate resolution | `319a62012c14285eece2ba38062f4e0f09379f4d` |
+| popup menu appearance | `c0ca3f5e982efed4fc4d4b0f90b5e11e27cc9d1b` |
+| segmented tab sizing | `5b567f88c8f244ef34dc38011a93a6baa04690cd` |
+| fork validation | `86fe33cebaf4a0ac7b4cb8998f9a2fbac9c7900d` |
+| fork documentation | `bb34bffc376356fbdd05a2e504f1fef967dca624` |
+
+Replay commits before this documentation update:
+
+- `29a441769caa64b8bff7ec6fb97d3ee74f65afaa` build(fork): preserve coherent GPUI dependencies
+- `acce3f08c4f977ec66d59b60ad6963d47dcf1b3a` feat(fork): preserve viewport scrollbar reveal
+- `1d08096a6d1790341f83cb58549f8e39677bbe50` feat(fork): preserve popup menu appearance
+- `136915c44bed99f7583253056208848db95620e0` feat(fork): preserve segmented tab sizing
+- `1e66814b16218d123fa051d3a846550ae17dcf54` ci(fork): preserve fork validation
+- `758dc695a952954d7a5720191005887189b03df3` docs(fork): preserve fork documentation
+- `4c41f6214893a70686cfa18d46d5e3ea04b0813f` fix(macros): resolve the active native GPUI facade
+- `e3e65c1d009341c4619e1cdc96407f9a5787cd67` build(deps): pin every native GPUI package to the rebased fork
+- `a6b06b911958543550807671a1061825ce5f68e7` ci(kit): validate full component and native facade regressions
+
+GPUI Kit is now 0.7.1. All six default Zed-derived dependencies point at
+nyakang/zed revision 9d03436aa8185c972e957f36e95044ac524b2cf4; the consumer must
+use the same revision. Optional upstream GPUI Fast packages remain available
+but NyaTerm does not activate them. IntoPlot's crate-path lookup retains the
+direct GPUI fallback before the inactive optional Fast dependency. Export tests
+explicitly import the facade's gpui namespace for native Zed Action derive imports.
+The default macro path remains the same native GPUI used by NyaTerm.
+
+Equal-width/natural-width tab layout, viewport hover scrollbar reveal and custom
+popup menu appearance are retained. The old SameIndent compatibility patch is
+replaced by upstream 87d10ae5e1299d1be18670a37570c5402f952e34 (#3370), which adapts
+the same calls. Upstream 3a39e9dfc97d8b12cf3c116708ada36bee02220b also improves
+measured Unicode wrapping; the Base tests validate those paths rather than
+replaying the older wrapper over them. Previous theme/backdrop replacements
+remain documented in the historical sections.
+
+Windows checks against the published Zed pin passed; Base tests (1333 plus one
+integration), Component library (664), facade export compile test and all-target
+clippy for Base/Component/Kit passed. Bun pin coherence check passed. Whole-workspace
+fmt is checked separately; older upstream format failures are historical records.
+CI now runs the full Component suite and facade export compile check.
+
+
+Validation is on Windows; native macOS/Linux checks are delegated to the
+branch workflow. Interactive GUI/file-drop and real-server authentication
+checks were not performed by this update. Their outcomes must not be inferred
+from scripted peers or compile checks.
