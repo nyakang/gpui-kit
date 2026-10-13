@@ -251,3 +251,19 @@ Windows Component library tests: 665 passed, including the new consumed-bubble
 regression proving keyboard action dispatch and dismissal focus restoration.
 Component all-target Clippy and workspace formatting checks passed. The existing
 NyaTerm list-menu/dialog regression is also used to validate this integration.
+
+## 2026-10-13 component notification layering
+
+Defer the component root's notification layer at `POPUP_PRIORITY + 1`, matching
+the existing ShellRoot toast priority. Ordinary deferred content, including
+NyaTerm's horizontal and vertical panel resize handles, previously painted over
+notifications and could receive pointer input through them. Notifications now
+paint and occlude above those handles and popups; tooltip priority remains higher.
+Sheet offsets, notification positioning, transitions, and dismissal are retained.
+
+Windows validation: all 105 NyaTerm UI tests passed using temporary local Cargo
+patches, including a new production-root regression that asserts actual quad draw
+order, notification click handling without resize activation, and uncovered
+horizontal/vertical handle input. The draw-order assertion fails against the
+previous revision. Fork workspace formatting and `git diff --check` passed.
+No data, persistence, or protocol contracts change.
