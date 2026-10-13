@@ -1528,6 +1528,10 @@ mod tests {
         variant: TabVariant,
     }
 
+    struct NaturalWidthHarness {
+        scroll_handle: ScrollHandle,
+    }
+
     impl Render for FlexHarness {
         fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
             div()
@@ -1988,6 +1992,21 @@ mod tests {
         }
     }
 
+    impl Render for NaturalWidthHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(100.)).child(
+                TabBar::new("natural-width-segmented-tabs")
+                    .w_full()
+                    .segmented()
+                    .track_scroll(&self.scroll_handle)
+                    .children(
+                        (0..3)
+                            .map(|ix| Tab::new().w(px(60.)).flex_none().label(format!("Tab {ix}"))),
+                    ),
+            )
+        }
+    }
+
     #[gpui::test]
     fn vertical_mouse_wheel_uses_the_scroll_viewports_inherited_line_height(
         cx: &mut TestAppContext,
@@ -2219,5 +2238,20 @@ mod tests {
         let cx = show_late_bar(cx, px(0.));
         next_frame(cx);
         assert_eq!(cx.update(|window, cx| window.simulate_next_frame(cx)), 0);
+    }
+
+    #[gpui::test]
+    fn segmented_tabs_respect_explicit_natural_width(cx: &mut TestAppContext) {
+        cx.update(crate::theme::init);
+        let scroll_handle = ScrollHandle::new();
+        let (_, cx) = cx.add_window_view({
+            let scroll_handle = scroll_handle.clone();
+            move |_, _| NaturalWidthHarness { scroll_handle }
+        });
+
+        draw(cx);
+        draw(cx);
+
+        assert!(scroll_handle.max_offset().x > px(0.));
     }
 }
