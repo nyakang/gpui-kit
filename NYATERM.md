@@ -280,3 +280,7 @@ Windows validation: `cargo check -p gpui-kit` and
 `bun script/check-gpui-pin.ts` passed. Cargo.lock changes only the Zed source
 revisions. Native drag lifecycle tests are recorded in the Zed fork's NYATERM.md;
 interactive external-app and mixed-DPI tests remain pending.
+
+The final pin is `09a27ca822b2a6906f90e55515e104cc04176f19`, adding the
+late-button-up cancellation race fix. All six requirements and Cargo.lock move
+together; Windows Kit check and Bun pin coherence passed again.
