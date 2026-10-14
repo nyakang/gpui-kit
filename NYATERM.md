@@ -267,3 +267,16 @@ order, notification click handling without resize activation, and uncovered
 horizontal/vertical handle input. The draw-order assertion fails against the
 previous revision. Fork workspace formatting and `git diff --check` passed.
 No data, persistence, or protocol contracts change.
+
+## 2026-10-14 Windows drag safety dependency
+
+Pin all six native Zed dependencies to
+`c776ed2a4bd732e977a1249807616e6c18207afe`, which adds safe HWND lookup and
+deferred pointer cancellation. Consumers must use the same GPUI revision: mixing
+the old and new pins creates incompatible GPUI entity and element types.
+No Component or Base behavior changes are included in this dependency update.
+
+Windows validation: `cargo check -p gpui-kit` and
+`bun script/check-gpui-pin.ts` passed. Cargo.lock changes only the Zed source
+revisions. Native drag lifecycle tests are recorded in the Zed fork's NYATERM.md;
+interactive external-app and mixed-DPI tests remain pending.
