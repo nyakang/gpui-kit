@@ -284,3 +284,16 @@ interactive external-app and mixed-DPI tests remain pending.
 The final pin is `09a27ca822b2a6906f90e55515e104cc04176f19`, adding the
 late-button-up cancellation race fix. All six requirements and Cargo.lock move
 together; Windows Kit check and Bun pin coherence passed again.
+
+
+## 2026-10-15 test scheduler shutdown dependency
+
+Pin all six Zed dependencies to `d26c15f6688e593800a2ef74e4aab6dfac7a28e6`,
+which removes a lock inversion between timed GPUI test shutdown and real worker
+completions. Native consumers must use the same revision. No Base or Component
+behavior changes are included.
+
+Windows validation: `cargo check -p gpui-kit --locked` and
+`bun script/check-gpui-pin.ts` passed. Cargo.lock changes only Zed source
+revisions. The Zed fork records the scheduler regression tests in NYATERM.md;
+macOS CI validation remains pending.
