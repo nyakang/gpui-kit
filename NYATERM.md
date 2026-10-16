@@ -297,3 +297,10 @@ Windows validation: `cargo check -p gpui-kit --locked` and
 `bun script/check-gpui-pin.ts` passed. Cargo.lock changes only Zed source
 revisions. The Zed fork records the scheduler regression tests in NYATERM.md;
 macOS CI validation remains pending.
+
+## 2026-10-17 dynamic texture allocation dependency
+
+Pin Zed 304f112a4bb6ecf48b7276caa645b49563a137d6 to consume fallible dynamic
+texture staging and avoid multiple GPUI type identities in NyaTerm. No Kit
+implementation or public API changes. Validation is performed by the consuming
+NyaTerm workspace on Windows; GPUI texture tests passed in the Zed fork.
