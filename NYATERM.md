@@ -304,3 +304,10 @@ Pin Zed 304f112a4bb6ecf48b7276caa645b49563a137d6 to consume fallible dynamic
 texture staging and avoid multiple GPUI type identities in NyaTerm. No Kit
 implementation or public API changes. Validation is performed by the consuming
 NyaTerm workspace on Windows; GPUI texture tests passed in the Zed fork.
+
+## 2026-10-17 native allocation failure pin
+
+Align all GPUI dependencies and lockfile entries with Zed nyaterm revision
+9e2fabb8dac907911852ca8b9f67ab74fdd8c6e4, which propagates native atlas
+allocation errors. No gpui-kit source or persisted data changes. Validation:
+the consuming NyaTerm workspace checks and tests exercise this exact pin.
