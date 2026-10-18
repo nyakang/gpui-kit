@@ -311,3 +311,16 @@ Align all GPUI dependencies and lockfile entries with Zed nyaterm revision
 9e2fabb8dac907911852ca8b9f67ab74fdd8c6e4, which propagates native atlas
 allocation errors. No gpui-kit source or persisted data changes. Validation:
 the consuming NyaTerm workspace checks and tests exercise this exact pin.
+
+
+## 2026-10-18 Windows modal close dependency
+
+Align all six Zed dependencies and lockfile entries with nyaterm revision
+77a6246ddff9cafa6a72380fee60feedaa89b7d2. This restores the Windows modal
+owner before hiding a foreground dialog and avoids foreground stealing when
+closing in the background. No Kit source, public API or persisted data changes.
+Consumers must align their direct GPUI dependency with this revision.
+
+Validation: `bun script/check-gpui-pin.ts` checks all six requirements. The
+consuming NyaTerm workspace validates the dependency alignment on Windows;
+the Zed fork records its passing native lifecycle tests in NYATERM.md.
