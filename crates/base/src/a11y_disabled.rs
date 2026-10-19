@@ -288,16 +288,19 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "test-support")]
     struct Observed {
         disabled: bool,
     }
 
+    #[cfg(feature = "test-support")]
     impl Render for Observed {
         fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
             Switch::new("switch").disabled(self.disabled)
         }
     }
 
+    #[cfg(feature = "test-support")]
     #[gpui::test]
     fn the_test_support_snapshot_sees_the_flag(cx: &mut TestAppContext) {
         for disabled in [false, true] {

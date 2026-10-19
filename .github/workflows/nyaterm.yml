@@ -1,6 +1,6 @@
 name: NyaTerm branch
 
-# Upstream 0.7.0 uses the published gpui-pre snapshot. NyaTerm needs its
+# Upstream 0.8.0 uses the published gpui-pre snapshot. NyaTerm needs its
 # dynamic-texture and hidden-cursor patches, so this branch pins every
 # Zed-derived workspace crate to one matching fork revision.
 
@@ -34,6 +34,9 @@ jobs:
 
       - name: Base crate tests
         run: cargo test -p gpui-base
+
+      - name: Base observation regressions
+        run: cargo test -p gpui-base --features test-support
 
       - name: Scrollbar reveal tests
         run: cargo test -p gpui-base reveal
