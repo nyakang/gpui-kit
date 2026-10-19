@@ -5,7 +5,7 @@ to `gpui-kit` on top of an unmodified upstream base.
 
 - Fork: <https://github.com/nyakang/gpui-kit>
 - Upstream: <https://github.com/longbridge/gpui-kit>
-- Base revision: `369f7a8f5a6602da980f008cf726467588ad517f` (upstream `main`, 2026-10-13)
+- Base revision: `1676826d9d49b90f4d7b6808b69924f58796f6f1` (upstream `main`, 2026-10-20)
 - Branch: `nyaterm`
 
 NyaTerm uses this crate through the stable `nyaterm-ui` facade, so these are the
@@ -324,3 +324,46 @@ Consumers must align their direct GPUI dependency with this revision.
 Validation: `bun script/check-gpui-pin.ts` checks all six requirements. The
 consuming NyaTerm workspace validates the dependency alignment on Windows;
 the Zed fork records its passing native lifecycle tests in NYATERM.md.
+
+
+## 2026-10-20 upstream 0.8.0 rebase
+
+Rebase onto fixed upstream main `1676826d9d49b90f4d7b6808b69924f58796f6f1`.
+Previous published head: `922e57752137a86e9edeb575607fb7e99bf7970b`;
+retained locally as `backup/nyaterm-20261020` with original patches and range-diff.
+All six native Zed dependencies now use
+`c054331114f9abdc44e5d587cd23314db6ac5aff`, also consumed directly by NyaTerm.
+Optional upstream GPUI Fast packages remain available but are not enabled by
+NyaTerm. The lockfile preserves compatible registry versions, updates proptest
+to 1.12.0 as required by the new Zed manifest, and resolves upstream WGPU 30.
+
+Viewport-hover scrollbar reveal, popup appearance, opt-in right-click capture,
+notification priority, macro crate-path resolution, and natural-width tab
+regressions are retained. Conflict resolution keeps upstream menu callbacks,
+new tab wheel/font tests, and root imports. No old runtime patch was removed.
+The facade exports tests moved upstream into the consolidated `integration`
+target; branch CI now selects `integration exports::`.
+
+Upstream's disabled-control snapshot test referenced feature-gated test-support
+without enabling that feature. Gate that test and its harness consistently;
+the default suite and an explicit test-support run validate both configurations.
+No runtime behavior or persisted data contract changes.
+
+
+Windows validation passed on the rebased branch:
+
+```sh
+bun script/check-gpui-pin.ts
+cargo check -p gpui-base -p gpui-component -p gpui-kit
+cargo test -p gpui-base                         # 1435 unit + 2 external tests
+cargo test -p gpui-base --features test-support # 1436 unit + 2 external tests
+cargo test -p gpui-component --lib              # 702 tests
+cargo test -p gpui-kit --test integration exports:: # facade compile checks
+cargo clippy -p gpui-base -p gpui-component -p gpui-kit --all-targets
+cargo fmt --all -- --check
+```
+
+NyaTerm's workspace check also passed with this checkout substituted for Kit;
+final published-pin validation and CI outcomes are recorded in the consuming
+project's `docs/reports/fork-sync-2026-10-20.md`. Headless tests do not validate
+real desktop interaction; native Linux CI is dispatched after publication.
