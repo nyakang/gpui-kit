@@ -12,8 +12,8 @@ use crate::{
 use gpui::{
     App, AppContext, Bounds, Context, DefiniteLength, DispatchPhase, ElementId, Entity,
     FocusHandle, GlobalElementId, InteractiveElement, IntoElement, MouseMoveEvent,
-    ParentElement as _, Pixels, Render, RenderOnce, Styled, WeakFocusHandle, Window, canvas, deferred, div,
-    prelude::FluentBuilder as _,
+    ParentElement as _, Pixels, Render, RenderOnce, Styled, WeakFocusHandle, Window, canvas,
+    deferred, div, prelude::FluentBuilder as _,
 };
 use gpui_base::{TextSelection, TextSelectionScopeId, motion::Presence};
 use std::{any::TypeId, cell::Cell, rc::Rc};
