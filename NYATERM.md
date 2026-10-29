@@ -367,3 +367,15 @@ NyaTerm's workspace check also passed with this checkout substituted for Kit;
 final published-pin validation and CI outcomes are recorded in the consuming
 project's `docs/reports/fork-sync-2026-10-20.md`. Headless tests do not validate
 real desktop interaction; native Linux CI is dispatched after publication.
+
+## 2026-10-29 align GPUI with Windows IME caret fix
+
+Pin all six Zed workspace dependencies and their lockfile sources to
+`8e5a53c0aa6ff991bdf2bcbb4e6049e2f4715658` on `nyakang/zed:nyaterm`.
+NyaTerm consumes that revision directly for the Windows IME caret-only
+composition notification fix; using the same revision avoids linking two
+incompatible GPUI type sets. No component or public API changes.
+
+Validation on Windows: `bun script/check-gpui-pin.ts` passed;
+`cargo metadata --locked --offline --no-deps --format-version 1` passed.
+The consuming NyaTerm workspace checks validate the complete integration.
