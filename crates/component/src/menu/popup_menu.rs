@@ -1369,6 +1369,9 @@ impl PopupMenu {
 
         let this = MenuItemElement::new(ix)
             .relative()
+            // A height-limited menu must scroll its rows, not shrink their
+            // hitboxes and spacing to fit the viewport.
+            .flex_shrink_0()
             .when(options.layout.font_size.is_none(), |this| this.text_sm())
             .when_some(options.layout.font_size, |this, size| this.text_size(size))
             .py_0()
@@ -1830,6 +1833,49 @@ mod tests {
             child.read_with(cx, |child, cx| child.effective_appearance(cx)),
             Some(child_appearance)
         );
+    }
+
+    #[gpui::test]
+    fn scrollable_menu_preserves_rows_and_scrolls_to_keyboard_selection(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        cx.update(crate::init);
+        let (menu, cx) = cx.add_window_view(|window, cx| {
+            let menu = (0..21).fold(
+                PopupMenu::new(cx)
+                    .appearance(
+                        PopupMenuAppearance::new()
+                            .row_height(px(28.))
+                            .row_gap(px(0.)),
+                    )
+                    .max_h(px(196.))
+                    .scrollable(true),
+                |menu, ix| menu.item(PopupMenuItem::new(format!("Theme {ix}"))),
+            );
+            menu.focus_handle.focus(window, cx);
+            menu
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let scroll = menu.read_with(cx, |menu, _| menu.scroll_handle.clone());
+        let first = scroll.bounds_for_item(0).expect("first menu row");
+        let second = scroll.bounds_for_item(1).expect("second menu row");
+        assert_eq!(first.size.height, px(28.));
+        assert_eq!(second.top() - first.top(), px(28.));
+        assert!(scroll.max_offset().y > px(0.));
+
+        // Keyboard navigation must reveal the final item with the same row
+        // geometry as the entries initially visible in the viewport.
+        for _ in 0..21 {
+            cx.simulate_keystrokes("down");
+        }
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        assert_eq!(menu.read_with(cx, |menu, _| menu.selected_index), Some(20));
+        assert!(scroll.offset().y < px(0.));
+        let last = scroll.bounds_for_item(20).expect("last menu row");
+        assert_eq!(last.size.height, px(28.));
+        let visible_top = last.top() + scroll.offset().y;
+        assert!(visible_top >= scroll.bounds().top());
+        assert!(visible_top + last.size.height <= scroll.bounds().bottom());
     }
 
     #[gpui::test]
