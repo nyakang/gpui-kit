@@ -1,5 +1,18 @@
 # NyaTerm fork notes
 
+## 2026-11-02 align native child composition fix
+
+Pin the Zed workspace dependencies to `4d23d1497004fc8d93228e40b661e970995ee764`
+on the `nyaterm` branch. This keeps Kit and NyaTerm on one GPUI source while the
+owner DirectComposition scene moves below native child HWNDs. No component or
+Base behavior is changed here; the renderer fix and Windows regression live in
+the Zed fork.
+
+Validation: `cargo check -p gpui-kit -j 1` passed on Windows x64; manifest diff
+and whitespace checks passed. Zed Windows library tests passed 55 tests with one
+ignored. The consuming NyaTerm workspace checks and real RDP display verification
+follow after pinning this dependency-only commit.
+
 This branch carries [NyaTerm](https://github.com/nyakang/nyaterm)'s local changes
 to `gpui-kit` on top of an unmodified upstream base.
 
