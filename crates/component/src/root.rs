@@ -194,23 +194,24 @@ impl WindowState {
 
         Some(
             deferred(
-            div()
-                .absolute()
-                .top(safe_insets.top)
-                .right(safe_insets.right)
-                .bottom(safe_insets.bottom)
-                .left(safe_insets.left)
-                .child(
-                    div()
-                        .absolute()
-                        .inset_0()
-                        .when_some(mt, |this, offset| this.mt(offset))
-                        .when_some(mr, |this, offset| this.mr(offset))
-                        .when_some(mb, |this, offset| this.mb(offset))
-                        .when_some(ml, |this, offset| this.ml(offset))
-                        .child(root.read(cx).notification.clone()),
-                )
-            ).with_priority(NOTIFICATION_PRIORITY),
+                div()
+                    .absolute()
+                    .top(safe_insets.top)
+                    .right(safe_insets.right)
+                    .bottom(safe_insets.bottom)
+                    .left(safe_insets.left)
+                    .child(
+                        div()
+                            .absolute()
+                            .inset_0()
+                            .when_some(mt, |this, offset| this.mt(offset))
+                            .when_some(mr, |this, offset| this.mr(offset))
+                            .when_some(mb, |this, offset| this.mb(offset))
+                            .when_some(ml, |this, offset| this.ml(offset))
+                            .child(root.read(cx).notification.clone()),
+                    ),
+            )
+            .with_priority(NOTIFICATION_PRIORITY),
         )
     }
 
@@ -799,6 +800,17 @@ struct WindowStateLayers {
 impl RenderOnce for WindowStateLayers {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let root = self.root;
+        // Exit animations remain visible after their dialog releases input.
+        let dialog_input = if root
+            .read(cx)
+            .active_dialogs
+            .iter()
+            .any(|dialog| !dialog.closing)
+        {
+            gpui::NativeOverlayInput::Modal
+        } else {
+            gpui::NativeOverlayInput::Passive
+        };
         div()
             .absolute()
             .inset_0()
@@ -809,7 +821,7 @@ impl RenderOnce for WindowStateLayers {
             )
             .children(
                 WindowState::dialog_layer(&root, window, cx)
-                    .map(|layer| gpui::native_overlay(layer, gpui::NativeOverlayInput::Modal)),
+                    .map(|layer| gpui::native_overlay(layer, dialog_input)),
             )
             .children(WindowState::notification_layer(&root, window, cx))
     }
