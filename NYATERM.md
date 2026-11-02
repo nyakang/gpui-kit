@@ -379,3 +379,25 @@ incompatible GPUI type sets. No component or public API changes.
 Validation on Windows: `bun script/check-gpui-pin.ts` passed;
 `cargo metadata --locked --offline --no-deps --format-version 1` passed.
 The consuming NyaTerm workspace checks validate the complete integration.
+
+## 2026-11-02 preserve scrollable popup menu rows
+
+Prevent popup menu rows from flex-shrinking inside the height-limited item
+container. NyaTerm's terminal theme submenu adds a "Follow UI theme" entry to
+the appearance catalog; with 20 themes, that extra item enables automatic
+scrolling and previously compressed the configured 28px rows. Rows now retain
+their normal height and hitboxes while the existing scroll handle and keyboard
+navigation reveal overflow. The fix applies to all popup item kinds without
+changing public APIs, menu sizing defaults, or persisted data.
+
+Windows validation:
+
+- Added `scrollable_menu_preserves_rows_and_scrolls_to_keyboard_selection`.
+  Before the fix it failed with a 22.5px row instead of 28px. After the fix it
+  passes, including scroll-range and keyboard reveal checks for the final row.
+- `cargo test -p gpui-component --lib menu:: --offline` passed (27 tests).
+- `cargo fmt --all -- --check` passed.
+- `bun script/check-gpui-pin.ts` passed.
+
+The test commands used the consuming workspace's target directory for build
+artifacts. NyaTerm validates the published revision in its own workspace.
