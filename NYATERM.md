@@ -11,6 +11,18 @@ to `gpui-kit` on top of an unmodified upstream base.
 NyaTerm uses this crate through the stable `nyaterm-ui` facade, so these are the
 changes that could not be made on the NyaTerm side.
 
+## 2026-11-02 native child overlay presentation
+
+Require GPUI revision `d9d445d98dfb5b12ac7efd4ec6302fa77adc54ff` and annotate
+window-owned dialog/sheet layers as modal, tooltip as passive, and touch-selection
+and fallback-menu layers as regional. The component entities and focus handles
+remain in the original window; deferred drawing inherits the presentation scope.
+This allows the same widgets to remain visible above system native child HWNDs.
+
+Validation: Windows x64 consuming NyaTerm workspace check passed with both
+editable forks; GPUI's five native-overlay tests passed. Real RDP interaction,
+IME and ARM64 hardware acceptance are separately tracked by NyaTerm.
+
 ## Patches
 
 1. `fix(tab_bar): let segmented tabs fill the bar` — flex sizing set on each
