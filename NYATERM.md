@@ -1,5 +1,32 @@
 # NyaTerm fork notes
 
+## 2026-11-03 fixed upstream synchronization
+
+Rebase onto upstream `4cbbc0190c03a4a5e875785b45a00174609ffa84`
+(GPUI Kit 0.9.0), retaining the concern-separated menu appearance, row height,
+segmented tab layout, viewport scrollbar hover, macro crate paths and native
+overlay patches. Preserve upstream checkable-menu state, safe notification
+insets and dialog exit animations. All six Zed-derived dependencies use
+`a755e55acb90229c687e64e6a84877fb70d21619`, identical to NyaTerm's direct GPUI.
+No runtime patch was removed; upstream's 0.9 manifests and lockfile replace
+the old version metadata.
+
+A regression exposed the native modal wrapper blocking the application while
+a closed dialog faded out. Keep the visual overlay passive once no open dialog
+remains; keep modal input while any dialog is open. The existing
+`closing_dialog_does_not_block_input_beneath_it` test failed before this fix
+and passes afterwards. Adapt four upstream Hitbox fixtures to GPUI's overlay
+input field.
+
+Windows serialized validation passed: Base 1554 unit tests and two external
+consumer tests, Component 756 tests, and facade integration export compile
+checks. The three-crate check against the published Zed revision,
+`bun script/check-gpui-pin.ts`, and workspace formatting also passed.
+NyaTerm workspace check passed with local sources; published-source
+validation is recorded in the consuming synchronization report. Real native
+RDP interaction, Linux and macOS desktop behavior were not verified locally.
+
+
 ## 2026-11-03 align native child cursor ownership
 
 Pin all six Zed dependencies to `597ca983eb6facf1a8528a56204aeeb7c857eaf6`
