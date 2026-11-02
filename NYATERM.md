@@ -504,3 +504,20 @@ overlay context through reentrant activation/input and invalidates destroyed
 HWNDs. The dependency's hidden owner-destruction test passed on Windows.
 Validation: `bun script/check-gpui-pin.ts`, Cargo metadata resolution, and
 `git diff --check`; consuming NyaTerm checks cover integration.
+
+
+### Logical dialog lifetime during exit animation
+
+Expose `WindowExt::open_tracked_dialog` and a weak `DialogHandle` whose
+`is_active()` becomes false synchronously on logical close, including
+programmatic close and close-all. The component stack owns this state;
+retaining the builder for its exit animation cannot keep the logical handle
+active. NyaTerm uses it to reject a verification result from a replaced
+security dialog without suppressing entrance or exit motion.
+
+Windows serialized Component tests passed all 757 tests, including animated
+close and closing an unrendered stack. Facade integration export compilation
+and workspace formatting passed. NyaTerm all-target compilation and the three
+focused sidebar, plugin cancellation and security replacement regressions
+passed with this checkout. Final published-source workspace validation is
+recorded in the consuming report.

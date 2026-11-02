@@ -1026,6 +1026,31 @@ pub(crate) mod tests {
         assert_eq!(bounds.origin.y, px(80.));
     }
 
+    #[gpui::test]
+    fn tracked_dialog_ends_before_animated_content_unmounts(cx: &mut TestAppContext) {
+        let cx = window(cx, size(px(1000.), px(800.)));
+        cx.update(|_, cx| cx.set_reduce_motion(false));
+        let handle = cx.update(|window, cx| {
+            window.open_tracked_dialog(cx, |dialog, _, _| dialog.title("Tracked"))
+        });
+        cx.run_until_parked();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        assert!(handle.is_active());
+        cx.background_executor.advance_clock(*ANIMATION_DURATION);
+        frame(cx);
+        cx.update(|window, cx| window.close_dialog(cx));
+        assert!(!handle.is_active());
+        cx.update(|window, cx| {
+            assert!(WindowState::read(window, cx).active_dialogs[0].closing);
+            let first = window.open_tracked_dialog(cx, |dialog, _, _| dialog);
+            let second = window.open_tracked_dialog(cx, |dialog, _, _| dialog);
+            assert!(first.is_active() && second.is_active());
+            window.close_all_dialogs(cx);
+            assert!(!first.is_active() && !second.is_active());
+        });
+    }
+
     /// A dialog wider and taller than the window must shrink to the viewport
     /// instead of running off both edges. It also gives up the usual top
     /// offset so that space is available to its content, while its footer

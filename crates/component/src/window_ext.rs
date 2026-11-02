@@ -7,7 +7,23 @@ use crate::{
     sheet::Sheet,
 };
 use gpui::{App, ElementId, Entity, Window};
-use std::rc::Rc;
+use std::{
+    cell::Cell,
+    rc::{Rc, Weak},
+};
+
+/// Logical dialog lifetime, which ends before its exit animation unmounts.
+#[derive(Clone)]
+pub struct DialogHandle {
+    pub(crate) active: Weak<Cell<bool>>,
+}
+
+impl DialogHandle {
+    /// Whether this dialog is open and accepting input.
+    pub fn is_active(&self) -> bool {
+        self.active.upgrade().is_some_and(|active| active.get())
+    }
+}
 
 /// Extension trait for [`Window`] to add dialog, sheet .. functionality.
 pub trait WindowExt: Sized {
@@ -73,6 +89,11 @@ pub trait WindowExt: Sized {
     /// });
     /// ```
     fn open_dialog<F>(&mut self, cx: &mut App, build: F)
+    where
+        F: Fn(Dialog, &mut Window, &mut App) -> Dialog + 'static;
+
+    /// Opens a dialog and returns its logical lifetime, independent of exit animation.
+    fn open_tracked_dialog<F>(&mut self, cx: &mut App, build: F) -> DialogHandle
     where
         F: Fn(Dialog, &mut Window, &mut App) -> Dialog + 'static;
 
@@ -179,6 +200,16 @@ impl WindowExt for Window {
     {
         WindowState::update(self, cx, move |root, window, cx| {
             root.open_dialog(build, window, cx);
+        })
+    }
+
+    #[inline]
+    fn open_tracked_dialog<F>(&mut self, cx: &mut App, build: F) -> DialogHandle
+    where
+        F: Fn(Dialog, &mut Window, &mut App) -> Dialog + 'static,
+    {
+        WindowState::update(self, cx, move |root, window, cx| {
+            root.open_dialog(build, window, cx)
         })
     }
 

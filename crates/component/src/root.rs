@@ -1,5 +1,5 @@
 use crate::{
-    ActiveTheme, ElementExt, Placement,
+    ActiveTheme, DialogHandle, ElementExt, Placement,
     dialog::{ANIMATION_DURATION, Dialog, DialogMotion},
     input::AnyInputState,
     native_menu::FallbackMenuOverlay,
@@ -70,6 +70,7 @@ pub(crate) struct ActiveDialog {
     /// `DialogEntrance::None`, reduced motion, and a zero theme duration all
     /// close in a single frame.
     exit_enabled: Rc<Cell<bool>>,
+    active: Rc<Cell<bool>>,
     /// Retained after closing until its exit transition finishes.
     pub(crate) closing: bool,
 }
@@ -89,6 +90,7 @@ impl ActiveDialog {
             selection_scope,
             builder: Rc::new(builder),
             exit_enabled: Rc::new(Cell::new(false)),
+            active: Rc::new(Cell::new(true)),
             closing: false,
         }
     }
@@ -395,7 +397,8 @@ impl WindowState {
         build: F,
         window: &mut Window,
         cx: &mut Context<'_, WindowState>,
-    ) where
+    ) -> DialogHandle
+    where
         F: Fn(Dialog, &mut Window, &mut App) -> Dialog + 'static,
     {
         let mut previous_focused_handle = window.focused(cx).map(|h| h.downgrade());
@@ -412,17 +415,22 @@ impl WindowState {
         let id = self.next_dialog_id;
         self.next_dialog_id += 1;
         let selection_scope = self.allocate_text_selection_scope();
-        self.active_dialogs.push(ActiveDialog::new(
+        let dialog = ActiveDialog::new(
             id,
             focus_handle,
             previous_focused_handle,
             selection_scope,
             build,
-        ));
+        );
+        let handle = DialogHandle {
+            active: Rc::downgrade(&dialog.active),
+        };
+        self.active_dialogs.push(dialog);
         // Opening a modal confines selection to it; drop any background
         // selection so it cannot linger (or be copied) under the modal.
         gpui_base::TextSelection::clear(window, cx);
         cx.notify();
+        handle
     }
 
     /// Closes the newest dialog that is not already closing.
@@ -442,6 +450,7 @@ impl WindowState {
             .clone()
             .and_then(|handle| handle.upgrade());
 
+        self.active_dialogs[ix].active.set(false);
         if self.active_dialogs[ix].exit_enabled.get() {
             Self::begin_dialog_exit(&mut self.active_dialogs[ix], window, cx);
         } else {
@@ -515,6 +524,9 @@ impl WindowState {
             .first()
             .and_then(|d| d.previous_focused_handle.clone());
 
+        for dialog in &self.active_dialogs {
+            dialog.active.set(false);
+        }
         // Dialogs with an exit transition leave by animating; the rest go now.
         self.active_dialogs
             .retain(|dialog| dialog.closing || dialog.exit_enabled.get());
