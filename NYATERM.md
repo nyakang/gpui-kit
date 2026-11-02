@@ -1,5 +1,15 @@
 # NyaTerm fork notes
 
+## 2026-11-02 align native overlay pointer routing
+
+Pin all six Zed dependencies to `e33b65da712adc702e1c8816066a2aefca619a18`.
+This aligns the pointer-transparent visual and regioned input overlay fix
+with the consuming application without changing Kit APIs.
+
+Validation: manifest/lock revision consistency and whitespace checks passed.
+Zed Windows tests passed 57 tests, zero failures, one ignored.
+The consuming NyaTerm workspace checks the shared GPUI graph and real RDP input.
+
 ## 2026-11-02 align native child owner redirection
 
 Pin all six Zed dependencies to `8ecf76c3abf4f3c564b14ce9de5181c9b42244b5`,
