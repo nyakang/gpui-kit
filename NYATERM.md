@@ -13,7 +13,7 @@ changes that could not be made on the NyaTerm side.
 
 ## 2026-11-02 native child overlay presentation
 
-Require GPUI revision `d9d445d98dfb5b12ac7efd4ec6302fa77adc54ff` and annotate
+Require GPUI revision `be61ba9ce2b8bccc4a5cabd8c1ad135a87a115d6` and annotate
 window-owned dialog/sheet layers as modal, tooltip as passive, and touch-selection
 and fallback-menu layers as regional. The component entities and focus handles
 remain in the original window; deferred drawing inherits the presentation scope.
@@ -413,3 +413,11 @@ Windows validation:
 
 The test commands used the consuming workspace's target directory for build
 artifacts. NyaTerm validates the published revision in its own workspace.
+
+### Overlay HWND lifetime dependency update
+
+Pin GPUI to `be61ba9ce2b8bccc4a5cabd8c1ad135a87a115d6`, which retains the
+overlay context through reentrant activation/input and invalidates destroyed
+HWNDs. The dependency's hidden owner-destruction test passed on Windows.
+Validation: `bun script/check-gpui-pin.ts`, Cargo metadata resolution, and
+`git diff --check`; consuming NyaTerm checks cover integration.
