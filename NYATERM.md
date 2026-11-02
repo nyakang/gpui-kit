@@ -1,5 +1,18 @@
 # NyaTerm fork notes
 
+## 2026-11-03 align native child cursor ownership
+
+Pin all six Zed dependencies to `597ca983eb6facf1a8528a56204aeeb7c857eaf6`
+on `nyakang/zed:nyaterm`. This keeps Kit and NyaTerm on one GPUI source while
+GPUI preserves native child HWND cursor ownership for WM_SETCURSOR and
+asynchronous cursor changes. No Kit APIs or component behavior change.
+
+Validation: manifest/lock consistency and whitespace checks passed. Zed Windows
+library tests passed 58 tests, zero failures, one ignored with test-support in
+serialized mode. The consuming NyaTerm workspace performs the final build;
+real RDP cursor and DPI validation remains pending because desktop automation
+is unavailable in this environment.
+
 ## 2026-11-02 align native input thread observation
 
 Pin all six Zed dependencies to `fa96acbd51d347ba7a4fff2053036a1559ef9387`
