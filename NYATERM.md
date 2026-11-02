@@ -1,5 +1,17 @@
 # NyaTerm fork notes
 
+## 2026-11-02 align native child owner redirection
+
+Pin all six Zed dependencies to `8ecf76c3abf4f3c564b14ce9de5181c9b42244b5`,
+which adds the window creation opt-in required by legacy HWND child painting.
+The earlier target-order change alone did not pass NyaTerm's real RDP check.
+This commit only aligns dependency revisions; it changes no Kit component API.
+
+Validation: manifest and lockfile revision diff and whitespace checks passed.
+Zed Windows library tests passed 56 tests with one ignored in serialized mode.
+The consuming NyaTerm workspace validates the dependency graph and actual RDP
+display after pinning this commit.
+
 ## 2026-11-02 align native child composition fix
 
 Pin the Zed workspace dependencies to `4d23d1497004fc8d93228e40b661e970995ee764`
