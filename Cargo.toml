@@ -61,12 +61,12 @@ story = { path = "crates/story" }
 
 # NyaTerm consumes one coherent Zed fork revision so its dynamic-texture and
 # hidden-cursor APIs cannot be mixed with a published gpui-pre snapshot.
-gpui = { version = "=0.2.2", git = "https://github.com/nyakang/zed", rev = "fa96acbd51d347ba7a4fff2053036a1559ef9387" }
-gpui_platform = { git = "https://github.com/nyakang/zed", rev = "fa96acbd51d347ba7a4fff2053036a1559ef9387", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui_web = { git = "https://github.com/nyakang/zed", rev = "fa96acbd51d347ba7a4fff2053036a1559ef9387" }
-gpui_macros = { version = "0.1.0", git = "https://github.com/nyakang/zed", rev = "fa96acbd51d347ba7a4fff2053036a1559ef9387" }
-reqwest_client = { git = "https://github.com/nyakang/zed", rev = "fa96acbd51d347ba7a4fff2053036a1559ef9387" }
-sum-tree = { package = "sum_tree", git = "https://github.com/nyakang/zed", rev = "fa96acbd51d347ba7a4fff2053036a1559ef9387" }
+gpui = { version = "=0.2.2", git = "https://github.com/nyakang/zed", rev = "597ca983eb6facf1a8528a56204aeeb7c857eaf6" }
+gpui_platform = { git = "https://github.com/nyakang/zed", rev = "597ca983eb6facf1a8528a56204aeeb7c857eaf6", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
+gpui_web = { git = "https://github.com/nyakang/zed", rev = "597ca983eb6facf1a8528a56204aeeb7c857eaf6" }
+gpui_macros = { version = "0.1.0", git = "https://github.com/nyakang/zed", rev = "597ca983eb6facf1a8528a56204aeeb7c857eaf6" }
+reqwest_client = { git = "https://github.com/nyakang/zed", rev = "597ca983eb6facf1a8528a56204aeeb7c857eaf6" }
+sum-tree = { package = "sum_tree", git = "https://github.com/nyakang/zed", rev = "597ca983eb6facf1a8528a56204aeeb7c857eaf6" }
 gpui-fast = { package = "gpui-fast", version = "0.1.14", features = ["windows-manifest-provided-by-host"] }
 gpui-fast-platform = { package = "gpui-fast-platform", version = "0.1.14", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
 gpui-fast-web = { package = "gpui-fast-web", version = "0.1.14" }
