@@ -573,10 +573,19 @@ impl Render for WindowState {
             .absolute()
             .inset_0()
             .child(WindowStateLayers { root: cx.entity() })
-            .child(self.touch_selection_overlay.clone())
-            .child(self.tooltip_overlay.clone())
+            .child(gpui::native_overlay(
+                self.touch_selection_overlay.clone(),
+                gpui::NativeOverlayInput::Region,
+            ))
+            .child(gpui::native_overlay(
+                self.tooltip_overlay.clone(),
+                gpui::NativeOverlayInput::Passive,
+            ))
             .children(self.tooltip_press_listener(cx))
-            .child(self.native_menu_overlay.clone())
+            .child(gpui::native_overlay(
+                self.native_menu_overlay.clone(),
+                gpui::NativeOverlayInput::Region,
+            ))
     }
 }
 
@@ -597,8 +606,14 @@ impl RenderOnce for WindowStateLayers {
             .absolute()
             .inset_0()
             .debug_selector(|| "root-layers".to_string())
-            .children(WindowState::sheet_layer(root.clone(), window, cx))
-            .children(WindowState::dialog_layer(&root, window, cx))
+            .children(
+                WindowState::sheet_layer(root.clone(), window, cx)
+                    .map(|layer| gpui::native_overlay(layer, gpui::NativeOverlayInput::Modal)),
+            )
+            .children(
+                WindowState::dialog_layer(&root, window, cx)
+                    .map(|layer| gpui::native_overlay(layer, gpui::NativeOverlayInput::Modal)),
+            )
             .children(WindowState::notification_layer(&root, cx))
     }
 }
