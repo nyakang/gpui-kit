@@ -1,5 +1,13 @@
 # NyaTerm fork notes
 
+## 2026-11-02 align native input thread observation
+
+Pin all six Zed dependencies to `fa96acbd51d347ba7a4fff2053036a1559ef9387`
+for GPUI menu outside-click notification across private ActiveX input threads.
+No Kit APIs change. Manifest/lock consistency and whitespace checks passed;
+Zed Windows library tests passed 57 tests, zero failures, one ignored.
+The consuming NyaTerm workspace performs final build and real input validation.
+
 ## 2026-11-02 align native overlay pointer routing
 
 Pin all six Zed dependencies to `e33b65da712adc702e1c8816066a2aefca619a18`.
