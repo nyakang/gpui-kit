@@ -1,5 +1,18 @@
 # NyaTerm fork notes
 
+## 2026-11-05 align native overlay modal ordering
+
+Pin all six Zed dependencies to `6cda7bc3f0e0ab64be33627851f56f8d908fe844`
+on `nyakang/zed:nyaterm`. This keeps Kit and NyaTerm on one GPUI source while
+GPUI keeps owned modal dialogs above the native child overlay popups and stops
+the overlay input popup from accepting input for a disabled owner. No Kit APIs
+or component behavior change.
+
+Validation: manifest/lock consistency (`cargo metadata --locked`) and
+whitespace checks passed. Zed Windows library tests passed 61 tests, zero
+failures, one ignored with test-support in serialized mode. The consuming
+NyaTerm workspace performs the final build and real RDP acceptance.
+
 ## 2026-11-03 fixed upstream synchronization
 
 Rebase onto upstream `4cbbc0190c03a4a5e875785b45a00174609ffa84`
