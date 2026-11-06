@@ -1,5 +1,20 @@
 # NyaTerm fork notes
 
+## 2026-11-06 align GPUI accessibility and native hit-testing fixes
+
+Pin all six Zed workspace dependencies and lockfile sources to
+`75edab6ed56d8657ac555e1fdc082b75f5efbbe9` on `nyakang/zed:nyaterm`.
+That revision exposes test-platform accessibility activation/actions and
+publishes native window-control hit tests without borrowing App. Keep the
+consumer and Kit on the same GPUI types; no package versions or data formats
+change.
+
+Validation: `cargo +stable metadata --locked --format-version 1` passed.
+Manifest/lock inspection confirms all six aliases and the sole Zed lock source
+use the published full revision. Integration tests exercise the writable fork
+sources through a narrow consumer-style workspace, excluding unrelated Zed
+root patches.
+
 ## 2026-11-05 align native overlay modal ordering
 
 Pin all six Zed dependencies to `6cda7bc3f0e0ab64be33627851f56f8d908fe844`
