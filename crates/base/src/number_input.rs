@@ -1,9 +1,10 @@
 use crate::input::InputState;
 use std::rc::Rc;
 
+use gpui::Focusable as _;
 use gpui::{
-    AnyElement, App, Entity, EventEmitter, InteractiveElement as _, IntoElement, KeyBinding,
-    MouseButton, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement as _,
+    AccessibleAction, AnyElement, App, Entity, EventEmitter, InteractiveElement as _, IntoElement,
+    KeyBinding, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement as _,
     StyleRefinement, Styled, Window, actions, div, prelude::FluentBuilder as _,
 };
 
@@ -244,6 +245,17 @@ impl RenderOnce for NumberInput {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let disabled = self.disabled;
         let controls_right = self.controls_right;
+        // The spinbutton and its editor are separate accessibility nodes. A
+        // frame scope keeps editor actions bubbling here without claiming the
+        // editor's focus a second time when the accessibility tree is built.
+        let frame_focus = window
+            .use_keyed_state(
+                ("number-input-frame-focus", self.state.entity_id()),
+                cx,
+                |_, cx| cx.focus_handle(),
+            )
+            .read(cx)
+            .clone();
         let on_step = self.on_step.unwrap_or_else(|| {
             let state = self.state.clone();
             Rc::new(move |action, window, cx| {
@@ -329,23 +341,35 @@ impl RenderOnce for NumberInput {
         };
 
         InputBase::new(("number-input", self.state.entity_id()))
-            // The editor rendered below owns the state's focus handle. Tracking it
-            // here as well would make two painted elements claim accessibility
-            // focus in one frame (#3873); the key context above still receives
-            // the editor's Up and Down, so clicks on the frame hand focus over.
-            .on_mouse_down(MouseButton::Left, {
-                let state = self.state.clone();
-                move |_, window, cx| {
-                    if !window.default_prevented() {
-                        state.update(cx, |state, cx| state.focus(window, cx));
-                        window.prevent_default();
-                    }
-                }
-            })
+            .track_focus(&frame_focus)
             .flex()
             .items_center()
             .disabled(disabled)
             .role(Role::SpinButton)
+            .on_any_mouse_down({
+                let state = self.state.clone();
+                move |_, window, cx| {
+                    // Let child editors handle selection first. Presses on the
+                    // frame or step buttons must not focus the frame scope.
+                    if !window.default_prevented() {
+                        if !disabled
+                            && !state.read(cx).disabled
+                            && !state.read(cx).focus_handle(cx).is_focused(window)
+                        {
+                            state.update(cx, |state, cx| state.focus(window, cx));
+                        }
+                        window.prevent_default();
+                    }
+                }
+            })
+            .on_a11y_action(AccessibleAction::Focus, {
+                let state = self.state.clone();
+                move |_, window: &mut Window, cx: &mut App| {
+                    if !disabled && !state.read(cx).disabled {
+                        state.update(cx, |state, cx| state.focus(window, cx));
+                    }
+                }
+            })
             .when_some(self.accessibility_label, |this, label| {
                 this.aria_label(label)
             })

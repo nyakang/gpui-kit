@@ -1,5 +1,29 @@
 # NyaTerm fork notes
 
+## 2026-11-06 keep number-input accessibility focus on the editor
+
+Give each number-input frame an entity-keyed independent focus scope while
+its inner editor retains actual editing focus. The outer SpinButton keeps
+numeric values, step actions, and action bubbling, delegates accessibility
+Focus to the enabled editor, and contributes no Tab stop. Unhandled frame and
+step-button pointer presses delegate focus after child selection handlers,
+preventing GPUI's default frame focus from stealing the editor's focus.
+Public component interfaces and persisted values remain compatible.
+
+The new Component regressions activate the platform accessibility client and
+draw the real tree. Before the fix, selecting a number reproduced
+`set_focus called more than once in a single frame` in GPUI's a11y builder.
+Afterward, click/double-click/drag selection, blur/re-focus, multiple inputs,
+Tab navigation, keyboard/button stepping, and disabled accessibility Focus
+pass with one focused TextInput and preserved SpinButton semantics.
+
+Linux validation through the writable-source consumer workspace: Base library
+1,554 passed, Component library 755 passed, and both Base external tests passed.
+Existing Base tests cover step-button press focus and numeric bounds.
+Touched-file rustfmt and `git diff --check` passed. Windows automated and real
+settings/titlebar/native RDP acceptance remain unverified: no execution
+endpoint is available and fork Actions is disabled.
+
 ## 2026-11-06 align GPUI accessibility and native hit-testing fixes
 
 Pin all six Zed workspace dependencies and lockfile sources to

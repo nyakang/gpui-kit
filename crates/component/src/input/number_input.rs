@@ -242,6 +242,193 @@ impl RenderOnce for NumberInput {
 }
 
 #[cfg(test)]
+mod accessibility_tests {
+    use gpui::accesskit::{Action, ActionRequest, NodeId, TreeId};
+    use gpui::{
+        AppContext as _, Context, Entity, Focusable as _, IntoElement, MouseButton, MouseDownEvent,
+        MouseUpEvent, ParentElement as _, Render, Styled as _, TestAppContext, VisualTestContext,
+        Window, div, point, px,
+    };
+    use serde_json::Value;
+
+    use crate::Disableable as _;
+    use crate::input::{InputState, NumberInput};
+
+    struct NumberFixture {
+        inputs: [Entity<InputState>; 2],
+        disabled: bool,
+    }
+
+    impl Render for NumberFixture {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().flex().flex_col().w(px(220.)).h(px(64.)).children(
+                self.inputs.iter().enumerate().map(|(index, state)| {
+                    NumberInput::new(state)
+                        .h(px(32.))
+                        .disabled(self.disabled)
+                        .accessibility_label(format!("Number {index}"))
+                }),
+            )
+        }
+    }
+
+    fn fixture(cx: &mut TestAppContext) -> (Entity<NumberFixture>, &mut VisualTestContext) {
+        cx.update(crate::init);
+        cx.add_window_view(|window, cx| NumberFixture {
+            inputs: ["500", "1500"].map(|value| {
+                cx.new(|cx| {
+                    InputState::new(window, cx)
+                        .default_value(value)
+                        .min(100.)
+                        .max(100_000.)
+                        .step(100.)
+                })
+            }),
+            disabled: false,
+        })
+    }
+
+    fn tree(cx: &mut VisualTestContext) -> Value {
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            serde_json::from_str(
+                &window
+                    .debug_a11y_tree_json()
+                    .expect("active accessibility tree"),
+            )
+            .unwrap()
+        })
+    }
+
+    fn assert_editor_focus(cx: &mut VisualTestContext, value: &str) {
+        let tree = tree(cx);
+        let focus = tree["gpui_focus"].as_str().expect("focused node");
+        assert_eq!(tree["nodes"][focus]["aria"]["role"], "TextInput");
+        assert_eq!(tree["nodes"][focus]["aria"]["value"], value);
+        assert!(tree["nodes"].as_object().unwrap().values().any(|node| {
+            node["aria"]["role"] == "SpinButton"
+                && node["aria"]["numeric_value"].as_f64() == Some(value.parse().unwrap())
+        }));
+        assert_eq!(tree["frame"]["tab_stop_count"], 2);
+        assert_eq!(
+            tree["nodes"]
+                .as_object()
+                .unwrap()
+                .values()
+                .filter(|node| node["aria"]["role"] == "SpinButton")
+                .count(),
+            2
+        );
+    }
+
+    #[gpui::test]
+    fn focused_number_editors_build_one_accessibility_focus_during_selection_and_navigation(
+        cx: &mut TestAppContext,
+    ) {
+        let (fixture, cx) = fixture(cx);
+        assert!(cx.activate_accessibility());
+        let inputs = fixture.read_with(cx, |fixture, _| fixture.inputs.clone());
+        cx.simulate_click(point(px(100.), px(16.)), Default::default());
+        assert_editor_focus(cx, "500");
+        cx.simulate_event(MouseDownEvent {
+            button: MouseButton::Left,
+            position: point(px(100.), px(16.)),
+            modifiers: Default::default(),
+            click_count: 2,
+            first_mouse: false,
+        });
+        cx.simulate_event(MouseUpEvent {
+            button: MouseButton::Left,
+            position: point(px(100.), px(16.)),
+            modifiers: Default::default(),
+            click_count: 2,
+        });
+        assert!(
+            !inputs[0]
+                .read_with(cx, |state, _| state.selected_value())
+                .is_empty()
+        );
+        assert_editor_focus(cx, "500");
+        cx.simulate_event(MouseDownEvent {
+            button: MouseButton::Left,
+            position: point(px(95.), px(16.)),
+            modifiers: Default::default(),
+            click_count: 1,
+            first_mouse: false,
+        });
+        cx.simulate_mouse_move(
+            point(px(125.), px(16.)),
+            MouseButton::Left,
+            Default::default(),
+        );
+        cx.simulate_event(MouseUpEvent {
+            button: MouseButton::Left,
+            position: point(px(125.), px(16.)),
+            modifiers: Default::default(),
+            click_count: 1,
+        });
+        assert_editor_focus(cx, "500");
+        cx.update(|window, cx| window.focus_next(cx));
+        assert_editor_focus(cx, "1500");
+        cx.update(|window, cx| window.focus_prev(cx));
+        assert_editor_focus(cx, "500");
+        cx.update(|window, cx| window.blur(cx));
+        cx.simulate_click(point(px(100.), px(48.)), Default::default());
+        assert_editor_focus(cx, "1500");
+        cx.simulate_click(point(px(100.), px(16.)), Default::default());
+        cx.simulate_keystrokes("up");
+        assert_editor_focus(cx, "600");
+        cx.simulate_click(point(px(204.), px(16.)), Default::default());
+        assert_editor_focus(cx, "700");
+        cx.simulate_click(point(px(16.), px(16.)), Default::default());
+        assert_editor_focus(cx, "600");
+        cx.simulate_keystrokes("down");
+        assert_editor_focus(cx, "500");
+    }
+
+    #[gpui::test]
+    fn spinbutton_accessibility_focus_targets_editor_and_respects_disabled_state(
+        cx: &mut TestAppContext,
+    ) {
+        let (fixture, cx) = fixture(cx);
+        assert!(cx.activate_accessibility());
+        let input = fixture.read_with(cx, |fixture, _| fixture.inputs[0].clone());
+        let request = |tree: &Value| {
+            let node = tree["nodes"]
+                .as_object()
+                .unwrap()
+                .values()
+                .find(|node| {
+                    node["aria"]["role"] == "SpinButton" && node["aria"]["label"] == "Number 0"
+                })
+                .expect("named spinbutton");
+            ActionRequest {
+                action: Action::Focus,
+                target_tree: TreeId::ROOT,
+                target_node: NodeId(node["accesskit_id"].as_str().unwrap().parse().unwrap()),
+                data: None,
+            }
+        };
+        let focus_request = request(&tree(cx));
+        cx.simulate_accessibility_action(focus_request);
+        assert_editor_focus(cx, "500");
+        cx.update(|window, cx| assert!(input.read(cx).focus_handle(cx).is_focused(window)));
+        fixture.update(cx, |fixture, cx| {
+            fixture.disabled = true;
+            cx.notify();
+        });
+        cx.update(|window, cx| window.blur(cx));
+        let disabled_tree = tree(cx);
+        cx.simulate_accessibility_action(request(&disabled_tree));
+        cx.simulate_click(point(px(204.), px(16.)), Default::default());
+        cx.update(|window, cx| {
+            assert!(!input.read(cx).focus_handle(cx).is_focused(window));
+            assert_eq!(input.read(cx).value(), "500");
+        });
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::StepAction;
     use gpui_base::step_value;
