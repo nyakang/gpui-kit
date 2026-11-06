@@ -1,5 +1,22 @@
 # NyaTerm fork notes
 
+## 2026-11-07 align GPUI prepaint accessibility rollback
+
+Pin all six Zed workspace dependencies and existing lockfile sources to
+`a45a77c08a7cd5ed364778eb84961e1bde650b73` on `nyakang/zed:nyaterm`.
+That revision rolls back accessibility nodes, focus and bounds when a virtual
+list retries prepaint for autoscroll. It fixes the duplicate-node panic
+reproduced by NyaTerm's AI-history disclosure controls. Updating Kit together
+with the consuming application preserves a single GPUI source and compatible
+component types. Package versions, component APIs and persisted formats are
+unchanged.
+
+The Zed patch passed 453 library tests on Linux (two ignored), including
+checkpoint and up/down autoscroll regressions. Manifest/lock alignment and
+locked Cargo metadata validate this dependency-only Kit update. Consuming
+NyaTerm tests exercise the disclosure integration against the published pins.
+Native Windows acceptance remains unverified in this Linux environment.
+
 ## 2026-11-06 prepare serialized Windows component validation
 
 Run the branch Base/Component workflow on Linux and Windows with serialized
