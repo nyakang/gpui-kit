@@ -1,5 +1,16 @@
 # NyaTerm fork notes
 
+## 2026-11-06 prepare serialized Windows component validation
+
+Run the branch Base/Component workflow on Linux and Windows with serialized
+GPUI tests. Linux bootstrap is conditional; Base invocations enable
+`test-support` because its observation tests use that module. The complete
+Base run already includes those regressions, so remove the duplicate step.
+
+Workflow inspection and `git diff --check` passed. This is a validation
+configuration change, not a claim of Windows results: Actions is disabled
+for the fork and Windows automation/manual acceptance are pending.
+
 ## 2026-11-06 keep number-input accessibility focus on the editor
 
 Give each number-input frame an entity-keyed independent focus scope while

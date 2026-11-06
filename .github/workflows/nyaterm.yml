@@ -16,8 +16,14 @@ env:
 
 jobs:
   validate:
-    name: base + gpui-base
-    runs-on: ubuntu-latest
+    name: base + component (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2025]
+    env:
+      RUST_TEST_THREADS: 1
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +31,7 @@ jobs:
       # libraries have to be present. Reuse the repository's own script rather
       # than a hand-kept package list, so a rebase picks up upstream's changes.
       - name: Install system dependencies
+        if: runner.os == 'Linux'
         run: script/bootstrap
 
       - uses: oven-sh/setup-bun@v2
@@ -33,13 +40,10 @@ jobs:
         run: bun script/check-gpui-pin.ts
 
       - name: Base crate tests
-        run: cargo test -p gpui-base
-
-      - name: Base observation regressions
         run: cargo test -p gpui-base --features test-support
 
       - name: Scrollbar reveal tests
-        run: cargo test -p gpui-base reveal
+        run: cargo test -p gpui-base --features test-support reveal
 
       - name: Popup menu appearance tests
         run: cargo test -p gpui-component menu::popup_menu --lib
