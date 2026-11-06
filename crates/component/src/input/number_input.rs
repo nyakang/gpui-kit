@@ -241,7 +241,7 @@ impl RenderOnce for NumberInput {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "gpui-fast"), not(target_family = "wasm")))]
 mod accessibility_tests {
     use gpui::accesskit::{Action, ActionRequest, NodeId, TreeId};
     use gpui::{

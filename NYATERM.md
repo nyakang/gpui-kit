@@ -13,6 +13,18 @@ for the fork and Windows automation/manual acceptance are pending.
 
 ## 2026-11-06 keep number-input accessibility focus on the editor
 
+The actual-tree regressions run on the patched native Zed backend. Exclude
+them from `gpui-fast` and wasm test configurations, whose published test
+contexts do not expose the fork's accessibility simulation helpers. This
+test-only guard keeps those configurations independent of fork-only test APIs.
+The extra `gpui-fast,test-support --tests` check is blocked by 11 pre-existing
+`NativeOverlayInput`/`native_overlay` errors in unchanged Component `root.rs`:
+the published Fast backend lacks the fork's native-overlay APIs. This does
+not establish a passing Fast configuration; default-backend validation is
+recorded below and Fast migration is outside this patch.
+After the test guard, both native accessibility regressions passed again and
+locked metadata resolved the aligned Zed revision successfully.
+
 Give each number-input frame an entity-keyed independent focus scope while
 its inner editor retains actual editing focus. The outer SpinButton keeps
 numeric values, step actions, and action bubbling, delegates accessibility
@@ -38,7 +50,7 @@ endpoint is available and fork Actions is disabled.
 ## 2026-11-06 align GPUI accessibility and native hit-testing fixes
 
 Pin all six Zed workspace dependencies and lockfile sources to
-`75edab6ed56d8657ac555e1fdc082b75f5efbbe9` on `nyakang/zed:nyaterm`.
+`573a85755ffb65684ddb88f71f560846c61f92b6` on `nyakang/zed:nyaterm`.
 That revision exposes test-platform accessibility activation/actions and
 publishes native window-control hit tests without borrowing App. Keep the
 consumer and Kit on the same GPUI types; no package versions or data formats
