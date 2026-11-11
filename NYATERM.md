@@ -621,7 +621,9 @@ placed the status icon below a single-line message's center. Anchor the icon
 inside the text column and center it in the resolved, rounded `text_sm` line
 height instead. This follows inherited or instance line-height overrides and
 the window's rem size while keeping title, wrapped-message, and action layout
-unchanged. Public APIs and persisted data are unchanged.
+unchanged. Keep the icon outside the clipped text content so large custom
+icons and short custom content retain their existing overflow behavior.
+Public APIs and persisted data are unchanged.
 
 Windows validation:
 

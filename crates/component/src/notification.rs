@@ -444,11 +444,10 @@ impl Render for Notification {
             .gap_3()
             .refine_style(&self.style)
             .child(
-                v_flex()
+                div()
                     .relative()
                     .flex_1()
-                    .overflow_hidden()
-                    .when(has_icon, |this| this.ps(rems(1.5), cx))
+                    .min_w_0()
                     .when_some(icon, |this, icon| {
                         // Follow the first text line, including when the message wraps.
                         this.child(
@@ -462,13 +461,18 @@ impl Render for Notification {
                                 .child(icon),
                         )
                     })
-                    .when_some(self.title.clone(), |this, title| {
-                        this.child(div().text_sm().font_semibold().child(title))
-                    })
-                    .when_some(self.message.clone(), |this, message| {
-                        this.child(div().text_sm().child(message))
-                    })
-                    .when_some(content, |this, content| this.child(content)),
+                    .child(
+                        v_flex()
+                            .overflow_hidden()
+                            .when(has_icon, |this| this.ps(rems(1.5), cx))
+                            .when_some(self.title.clone(), |this, title| {
+                                this.child(div().text_sm().font_semibold().child(title))
+                            })
+                            .when_some(self.message.clone(), |this, message| {
+                                this.child(div().text_sm().child(message))
+                            })
+                            .when_some(content, |this, content| this.child(content)),
+                    ),
             )
             .when_some(action, |this, action| this.child(action))
             .child(
