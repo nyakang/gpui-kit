@@ -613,3 +613,26 @@ and workspace formatting passed. NyaTerm all-target compilation and the three
 focused sidebar, plugin cancellation and security replacement regressions
 passed with this checkout. Final published-source workspace validation is
 recorded in the consuming report.
+
+## 2026-11-11 align notification status icons with the first text line
+
+Fix <https://github.com/nyakang/nyaterm/issues/1231>: a fixed 18px top offset
+placed the status icon below a single-line message's center. Anchor the icon
+inside the text column and center it in the resolved, rounded `text_sm` line
+height instead. This follows inherited or instance line-height overrides and
+the window's rem size while keeping title, wrapped-message, and action layout
+unchanged. Public APIs and persisted data are unchanged.
+
+Windows validation:
+
+- `cargo check -p gpui-component --offline` passed.
+- `cargo test -p gpui-component --lib notification:: --offline -- --test-threads=1`
+  passed (18 tests).
+- `cargo fmt --all -- --check` passed.
+- `bun script/check-gpui-pin.ts` passed.
+- `git diff --check` passed.
+
+Cargo commands used the consuming NyaTerm workspace's target directory.
+Native screenshot verification was unavailable because the Computer Use
+native pipe could not be connected. NyaTerm validates the published revision
+with its workspace checks.
