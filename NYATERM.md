@@ -1,5 +1,19 @@
 # NyaTerm fork notes
 
+## 2026-11-13 align Touch Bar KVO-safe GPUI dependency
+
+Pin all six Zed workspace dependencies to
+`fb876e285d05f9df66bd01fb60ce3d4fcdb946d4` on nyakang/zed's nyaterm branch.
+This carries the plain AccessKit adapter and attachment-lifetime guards for
+nyakang/nyaterm#1262. NyaTerm and GPUI Kit must use one GPUI revision; mixing
+this with the former a45a77c pin creates incompatible Entity and element types.
+No component behavior or public API changes. Preserve all other lock entries.
+
+Validation before publication: git diff --check passes. Consumer Windows
+compilation is run after aligning both pins. macOS execution remains unverified:
+Zed fork workflow dispatch is rejected with HTTP 422 (Actions disabled).
+
+
 ## 2026-11-07 align GPUI prepaint accessibility rollback
 
 Pin all six Zed workspace dependencies and existing lockfile sources to
