@@ -1,8 +1,13 @@
+#[cfg(not(feature = "gpui-fast"))]
+use gpui::Path as PixelPath;
+#[cfg(feature = "gpui-fast")]
+type PixelPath = gpui::Path<gpui::Pixels>;
+
 // @reference: https://d3js.org/d3-shape/line
 
 use gpui::{
-    Background, BorderStyle, Bounds, Hsla, PaintQuad, Path, PathBuilder, Pixels, Point, Window, px,
-    quad, size,
+    Background, BorderStyle, Bounds, Hsla, PaintQuad, PathBuilder, Pixels, Point, Window, px, quad,
+    size,
 };
 
 use crate::plot::{Curve, PathCache, ShapeKey, origin_point};
@@ -163,7 +168,7 @@ impl<T> Line<T> {
     }
 
     /// The stroke through `dots`.
-    fn build_path(&self, dots: &[Point<Pixels>]) -> Option<Path<Pixels>> {
+    fn build_path(&self, dots: &[Point<Pixels>]) -> Option<PixelPath> {
         let mut builder = PathBuilder::stroke(self.stroke_width);
 
         if dots.is_empty() {
@@ -213,7 +218,7 @@ impl<T> Line<T> {
         builder.build().ok()
     }
 
-    fn path(&self, bounds: &Bounds<Pixels>) -> (Option<Path<Pixels>>, Vec<PaintQuad>) {
+    fn path(&self, bounds: &Bounds<Pixels>) -> (Option<PixelPath>, Vec<PaintQuad>) {
         let (dots, paint_dots) = self.dots(bounds.origin);
         (self.build_path(&dots), paint_dots)
     }

@@ -1,6 +1,11 @@
+#[cfg(not(feature = "gpui-fast"))]
+use gpui::Path as PixelPath;
+#[cfg(feature = "gpui-fast")]
+type PixelPath = gpui::Path<gpui::Pixels>;
+
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use gpui::{App, ElementId, Entity, Path, Pixels, Point, Window};
+use gpui::{App, ElementId, Entity, Pixels, Point, Window};
 
 /// A tessellated path reused across frames while its shape is unchanged.
 ///
@@ -16,7 +21,7 @@ use gpui::{App, ElementId, Entity, Path, Pixels, Point, Window};
 pub struct PathCache {
     key: Option<u64>,
     /// Built relative to a zero origin.
-    path: Option<Path<Pixels>>,
+    path: Option<PixelPath>,
 }
 
 impl PathCache {
@@ -26,8 +31,8 @@ impl PathCache {
         &mut self,
         key: u64,
         origin: Point<Pixels>,
-        build: impl FnOnce() -> Option<Path<Pixels>>,
-    ) -> Option<Path<Pixels>> {
+        build: impl FnOnce() -> Option<PixelPath>,
+    ) -> Option<PixelPath> {
         if self.key != Some(key) {
             self.path = build();
             self.key = Some(key);
@@ -43,13 +48,19 @@ impl PathCache {
 
 /// `path` moved by `offset`. A finished path is only its bounds and vertices;
 /// the builder cursor it keeps is not read again.
-fn translated(path: &Path<Pixels>, offset: Point<Pixels>) -> Path<Pixels> {
+#[cfg(feature = "gpui-fast")]
+fn translated(path: &PixelPath, offset: Point<Pixels>) -> PixelPath {
     let mut path = path.clone();
     path.bounds.origin = path.bounds.origin + offset;
     for vertex in &mut path.vertices {
         vertex.xy_position = vertex.xy_position + offset;
     }
     path
+}
+
+#[cfg(not(feature = "gpui-fast"))]
+fn translated(path: &PixelPath, offset: Point<Pixels>) -> PixelPath {
+    path.translated(offset)
 }
 
 /// The [`PathCache`]s of a plot that is rebuilt on every render, kept in the
@@ -136,7 +147,7 @@ mod tests {
     use super::*;
     use gpui::{PathBuilder, point, px};
 
-    fn diagonal() -> Option<Path<Pixels>> {
+    fn diagonal() -> Option<PixelPath> {
         let mut builder = PathBuilder::stroke(px(2.));
         builder.move_to(point(px(0.), px(0.)));
         builder.line_to(point(px(10.), px(10.)));
@@ -160,14 +171,22 @@ mod tests {
             })
             .unwrap();
         assert_eq!(builds, 1);
-        assert_eq!(first.vertices.len(), second.vertices.len());
-        for (a, b) in first.vertices.iter().zip(&second.vertices) {
-            assert_eq!(b.xy_position.x - a.xy_position.x, px(100.));
-            assert_eq!(b.xy_position.y, a.xy_position.y);
-            assert_eq!(a.st_position, b.st_position);
+        #[cfg(feature = "gpui-fast")]
+        {
+            assert_eq!(first.vertices.len(), second.vertices.len());
+            for (a, b) in first.vertices.iter().zip(&second.vertices) {
+                assert_eq!(b.xy_position.x - a.xy_position.x, px(100.));
+                assert_eq!(b.xy_position.y, a.xy_position.y);
+                assert_eq!(a.st_position, b.st_position);
+            }
+            assert_eq!(second.bounds.origin.x - first.bounds.origin.x, px(100.));
+            assert_eq!(first.bounds.size, second.bounds.size);
         }
-        assert_eq!(second.bounds.origin.x - first.bounds.origin.x, px(100.));
-        assert_eq!(first.bounds.size, second.bounds.size);
+        #[cfg(not(feature = "gpui-fast"))]
+        {
+            assert_eq!(second.bounds().origin.x - first.bounds().origin.x, px(100.));
+            assert_eq!(first.bounds().size, second.bounds().size);
+        }
 
         cache.get(2, point(px(0.), px(0.)), || {
             builds += 1;

@@ -1,9 +1,11 @@
+#[cfg(feature = "gpui-fast")]
+use gpui::IntoElement;
 use std::ops::Range;
 
 use gpui::{
     App, BorderStyle, Bounds, Corners, Edges, Element, ElementId, GlobalElementId, HighlightStyle,
-    Hitbox, HitboxBehavior, Hsla, InspectorElementId, IntoElement, LayoutId, PaintQuad, Pixels,
-    Point, SharedString, StyledText, Subscription, TextStyleRefinement, Window, transparent_black,
+    Hitbox, HitboxBehavior, Hsla, InspectorElementId, LayoutId, PaintQuad, Pixels, Point,
+    SharedString, StyledText, Subscription, TextStyleRefinement, Window, transparent_black,
 };
 
 use crate::{TextSelectionHandle, TextSelectionRegistration, TextSelectionRun};
@@ -145,6 +147,8 @@ fn selection_quad_bounds(
     quads
 }
 
+#[cfg(feature = "gpui-fast")]
+
 impl IntoElement for SelectableText {
     type Element = Self;
 
@@ -265,8 +269,8 @@ mod tests {
     use std::{cell::Cell, rc::Rc};
 
     use gpui::{
-        AppContext as _, Bounds, Context, IntoElement, Modifiers, MouseButton, ParentElement as _,
-        Render, Styled as _, TestAppContext, Window, div, point, px, size,
+        AppContext as _, Bounds, Context, IntoElement as _, Modifiers, MouseButton,
+        ParentElement as _, Render, Styled as _, TestAppContext, Window, div, point, px, size,
     };
 
     use super::SelectableText;
@@ -275,7 +279,7 @@ mod tests {
     struct SelectableTextTestView;
 
     impl Render for SelectableTextTestView {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
             div().size_full().child(TextSelectionLayer).child(
                 div()
                     .w(px(240.))
@@ -324,7 +328,7 @@ mod tests {
     struct HighlightedTestView;
 
     impl Render for HighlightedTestView {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
             let mark = gpui::HighlightStyle {
                 background_color: Some(gpui::red()),
                 font_weight: Some(gpui::FontWeight::BOLD),
@@ -372,7 +376,7 @@ mod tests {
     }
 
     impl Render for CachedText {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
             self.renders.set(self.renders.get() + 1);
             SelectableText::new("local", "alpha beta")
         }
@@ -383,7 +387,7 @@ mod tests {
     }
 
     impl Render for CachedTextParent {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
             div().size_full().child(TextSelectionLayer).child(
                 gpui::AnyView::from(self.text.clone())
                     .cached(gpui::StyleRefinement::default().w(px(240.)).h(px(32.))),
@@ -438,7 +442,7 @@ mod tests {
     }
 
     impl Render for CopyCallbackTestView {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
             div()
                 .size_full()
                 .child(TextSelectionLayer)
@@ -512,7 +516,7 @@ mod tests {
     }
 
     impl Render for ControlView {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
             use crate::ElementExt as _;
             self.renders.set(self.renders.get() + 1);
             div().w(px(60.)).h(px(20.)).keep_text_selection("control")
@@ -520,7 +524,7 @@ mod tests {
     }
 
     impl Render for ControlTestView {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
             let control = gpui::AnyView::from(self.control.clone());
             let control = if self.cached {
                 control

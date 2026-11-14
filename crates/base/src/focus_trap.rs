@@ -1,7 +1,9 @@
+#[cfg(feature = "gpui-fast")]
+use gpui::IntoElement;
 use gpui::{
     AnyElement, App, Bounds, Element, ElementId, FocusHandle, Global, GlobalElementId,
-    InteractiveElement, Interactivity, IntoElement, LayoutId, ParentElement, Pixels,
-    StatefulInteractiveElement, StyleRefinement, Styled, WeakFocusHandle, Window,
+    InteractiveElement, Interactivity, LayoutId, ParentElement, Pixels, StatefulInteractiveElement,
+    StyleRefinement, Styled, WeakFocusHandle, Window,
 };
 use std::collections::HashMap;
 
@@ -135,6 +137,7 @@ impl<E: InteractiveElement + ParentElement + Styled + Element> FocusTrapContaine
     }
 }
 
+#[cfg(feature = "gpui-fast")]
 impl<E: InteractiveElement + ParentElement + Styled + Element> IntoElement
     for FocusTrapContainer<E>
 {

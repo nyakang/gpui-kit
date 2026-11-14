@@ -4,6 +4,11 @@
 //! Colors are always handed in by the caller. A styled layer supplies chart
 //! defaults, the tooltip overlay, and hover and appear timing through
 //! [`PlotMotion`].
+#[cfg(not(feature = "gpui-fast"))]
+use gpui::Path as PixelPath;
+#[cfg(feature = "gpui-fast")]
+type PixelPath = gpui::Path<gpui::Pixels>;
+
 mod appear;
 mod axis;
 mod element;
@@ -17,8 +22,7 @@ pub mod shape;
 use std::{fmt::Debug, ops::Add, time::Duration};
 
 use gpui::{
-    AnyElement, App, Bounds, ElementId, IntoElement, Path, PathBuilder, Pixels, Point, Window,
-    point, px,
+    AnyElement, App, Bounds, ElementId, IntoElement, PathBuilder, Pixels, Point, Window, point, px,
 };
 
 use crate::{Spring, motion::Transition};
@@ -244,7 +248,7 @@ where
     point(x, y) + origin
 }
 
-pub fn polygon<T>(points: &[Point<T>], bounds: &Bounds<Pixels>) -> Option<Path<Pixels>>
+pub fn polygon<T>(points: &[Point<T>], bounds: &Bounds<Pixels>) -> Option<PixelPath>
 where
     T: Default + Clone + Copy + Debug + Into<f32> + PartialEq,
 {

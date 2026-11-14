@@ -134,6 +134,8 @@ impl PlotAppearScope {
     }
 }
 
+#[cfg(feature = "gpui-fast")]
+
 impl IntoElement for PlotAppearScope {
     type Element = Self;
 

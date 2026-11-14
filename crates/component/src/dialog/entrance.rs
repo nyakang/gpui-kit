@@ -1,6 +1,8 @@
+#[cfg(any(feature = "gpui-fast", test))]
+use gpui::IntoElement;
 use gpui::{
-    AnyElement, App, Bounds, Element, ElementId, GlobalElementId, InspectorElementId, IntoElement,
-    LayoutId, Pixels, Window, point, px,
+    AnyElement, App, Bounds, Element, ElementId, GlobalElementId, InspectorElementId, LayoutId,
+    Pixels, Window, point, px,
 };
 use serde::{Deserialize, Serialize};
 
@@ -45,6 +47,8 @@ impl EntranceSurface {
         }
     }
 }
+
+#[cfg(feature = "gpui-fast")]
 
 impl IntoElement for EntranceSurface {
     type Element = Self;

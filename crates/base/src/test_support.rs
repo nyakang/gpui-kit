@@ -2,9 +2,11 @@
 //!
 //! Native accessibility properties are read automatically. Applications register
 //! identified GPUI elements with `.test_support()`, without supplying test-only state.
+#[cfg(feature = "gpui-fast")]
+use gpui::IntoElement;
 use gpui::{
     App, Bounds, Element, ElementId, FocusHandle, GlobalElementId, Hitbox, InspectorElementId,
-    InteractiveElement, IntoElement, LayoutId, Pixels, SharedString, Visibility, Window, px,
+    InteractiveElement, LayoutId, Pixels, SharedString, Visibility, Window, px,
 };
 use smallvec::SmallVec;
 use std::{
@@ -450,6 +452,7 @@ impl<E: Element> Observed<E> {
         }
     }
 }
+#[cfg(feature = "gpui-fast")]
 impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> IntoElement for Observed<E> {
     type Element = Self;
     fn into_element(self) -> Self {
@@ -644,6 +647,7 @@ impl<E: Element> ObservedText<E> {
         ObservedText::new(self.inner.id(id), self.text, self.alternative)
     }
 }
+#[cfg(feature = "gpui-fast")]
 impl<E: Element> IntoElement for ObservedText<E> {
     type Element = Self;
     fn into_element(self) -> Self {

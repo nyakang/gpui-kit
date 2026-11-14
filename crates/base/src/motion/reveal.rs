@@ -1,6 +1,8 @@
+#[cfg(feature = "gpui-fast")]
+use gpui::IntoElement;
 use gpui::{
     AnyElement, App, AvailableSpace, Bounds, ContentMask, Element, ElementId, GlobalElementId,
-    InspectorElementId, IntoElement, LayoutId, Pixels, Style, Window, px, relative, size,
+    InspectorElementId, LayoutId, Pixels, Style, Window, px, relative, size,
 };
 
 /// A measured, clipped vertical reveal driven by normalized progress.
@@ -24,6 +26,8 @@ impl MotionReveal {
         }
     }
 }
+
+#[cfg(feature = "gpui-fast")]
 
 impl IntoElement for MotionReveal {
     type Element = Self;

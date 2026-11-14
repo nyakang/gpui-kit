@@ -1,3 +1,5 @@
+#[cfg(any(feature = "gpui-fast", test))]
+use gpui::IntoElement;
 use std::{cell::Cell, ops::Deref, panic::Location, rc::Rc};
 
 use instant::{Duration, Instant};
@@ -9,11 +11,10 @@ use crate::{
 };
 use gpui::{
     Anchor, App, Axis, Background, BorderStyle, Bounds, ContentMask, CursorStyle, Edges, Element,
-    ElementId, EntityId, GlobalElementId, Hitbox, HitboxBehavior, Hsla, InspectorElementId,
-    IntoElement, IsZero, LayoutId, ListState, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    PaintQuad, Pixels, Point, Position, ScrollEvent, ScrollHandle, Size, Style, TouchDragEvent,
-    TouchPhase, UniformListScrollHandle, Window, fill, point, prelude::FluentBuilder, px, relative,
-    size,
+    ElementId, EntityId, GlobalElementId, Hitbox, HitboxBehavior, Hsla, InspectorElementId, IsZero,
+    LayoutId, ListState, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point,
+    Position, ScrollEvent, ScrollHandle, Size, Style, TouchDragEvent, TouchPhase,
+    UniformListScrollHandle, Window, fill, point, prelude::FluentBuilder, px, relative, size,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -1191,6 +1192,8 @@ impl Scrollbar {
     }
 }
 
+#[cfg(feature = "gpui-fast")]
+
 impl IntoElement for Scrollbar {
     type Element = Self;
 
@@ -1654,7 +1657,7 @@ impl Element for Scrollbar {
 
                     window.set_cursor_style(CursorStyle::default(), &state.bar_hitbox);
 
-                    window.paint_layer(hitbox_bounds, |cx| {
+                    paint_compatible_layer(window, painted_bounds, |cx| {
                         cx.paint_quad(fill(painted_bounds, painted_track_bg));
 
                         cx.paint_quad(PaintQuad {
@@ -2880,6 +2883,7 @@ mod tests {
             scrollbar: Scrollbar,
             painted: Rc<Cell<Bounds<Pixels>>>,
         }
+        #[cfg(feature = "gpui-fast")]
         impl IntoElement for Probe {
             type Element = Self;
             fn into_element(self) -> Self {
@@ -3137,5 +3141,21 @@ mod tests {
 
         assert_eq!(handle.drag_starts.get(), 1);
         assert_eq!(handle.drag_ends.get(), 1);
+    }
+}
+
+// Native GPUI derives layer bounds from its primitives; the fast backend still
+// accepts an explicit clipping bound.
+fn paint_compatible_layer(
+    window: &mut Window,
+    bounds: Bounds<Pixels>,
+    paint: impl FnOnce(&mut Window),
+) {
+    #[cfg(feature = "gpui-fast")]
+    window.paint_layer(bounds, paint);
+    #[cfg(not(feature = "gpui-fast"))]
+    {
+        let _ = bounds;
+        window.paint_layer(paint);
     }
 }

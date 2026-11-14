@@ -1,10 +1,15 @@
+#[cfg(not(feature = "gpui-fast"))]
+use gpui::Path as PixelPath;
+#[cfg(feature = "gpui-fast")]
+type PixelPath = gpui::Path<gpui::Pixels>;
+
 // @reference: https://d3js.org/d3-shape/radial-line
 
 use std::f32::consts::PI;
 
 use gpui::{
-    Background, BorderStyle, Bounds, Hsla, PaintQuad, Path, PathBuilder, Pixels, Point, Window,
-    point, px, quad, size,
+    Background, BorderStyle, Bounds, Hsla, PaintQuad, PathBuilder, Pixels, Point, Window, point,
+    px, quad, size,
 };
 
 const HALF_PI: f32 = PI / 2.;
@@ -193,7 +198,7 @@ impl<T> RadialLine<T> {
     fn path(
         &self,
         bounds: &Bounds<Pixels>,
-    ) -> (Option<Path<Pixels>>, Option<Path<Pixels>>, Vec<PaintQuad>) {
+    ) -> (Option<PixelPath>, Option<PixelPath>, Vec<PaintQuad>) {
         let points = self.points(bounds);
         let mut paint_dots = vec![];
 

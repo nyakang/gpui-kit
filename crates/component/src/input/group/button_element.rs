@@ -1,6 +1,8 @@
+#[cfg(feature = "gpui-fast")]
+use gpui::IntoElement;
 use gpui::{
-    AnyElement, App, Bounds, Element, ElementId, GlobalElementId, InspectorElementId, IntoElement,
-    LayoutId, Pixels, Window,
+    AnyElement, App, Bounds, Element, ElementId, GlobalElementId, InspectorElementId, LayoutId,
+    Pixels, Window,
 };
 
 use super::InputGroupButton;
@@ -38,6 +40,8 @@ pub(super) fn unwrapped_element(mut element: &mut AnyElement) -> &mut AnyElement
     }
     element
 }
+
+#[cfg(feature = "gpui-fast")]
 
 impl IntoElement for InputGroupButtonElement {
     type Element = Self;

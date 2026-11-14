@@ -1,6 +1,11 @@
+#[cfg(not(feature = "gpui-fast"))]
+use gpui::Path as PixelPath;
+#[cfg(feature = "gpui-fast")]
+type PixelPath = gpui::Path<gpui::Pixels>;
+
 // @reference: https://d3js.org/d3-shape/area
 
-use gpui::{Background, Bounds, Path, PathBuilder, Pixels, Point, Window, px};
+use gpui::{Background, Bounds, PathBuilder, Pixels, Point, Window, px};
 
 use crate::plot::{Curve, PathCache, ShapeKey, origin_point};
 
@@ -86,7 +91,7 @@ impl<T> Area<T> {
         self
     }
 
-    fn path(&self, bounds: &Bounds<Pixels>) -> (Option<Path<Pixels>>, Option<Path<Pixels>>) {
+    fn path(&self, bounds: &Bounds<Pixels>) -> (Option<PixelPath>, Option<PixelPath>) {
         let origin = bounds.origin;
         let mut area_builder = PathBuilder::fill();
         let mut line_builder = PathBuilder::stroke(px(1.));

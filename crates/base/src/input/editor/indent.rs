@@ -1,11 +1,15 @@
+#[cfg(not(feature = "gpui-fast"))]
+use gpui::Path as PixelPath;
+#[cfg(feature = "gpui-fast")]
+type PixelPath = gpui::Path<gpui::Pixels>;
+
 use crate::input::InputModeKind;
 use crate::input::{
     Indent, IndentInline, InputBaseState, Outdent, OutdentInline, RopeExt, cursor::CursorSelection,
     element::TextElement, layout::LastLayout, mode::LayoutMode,
 };
 use gpui::{
-    Bounds, Context, Hsla, Path, PathBuilder, Pixels, SharedString, TextRun, TextStyle, Window,
-    point, px,
+    Bounds, Context, Hsla, PathBuilder, Pixels, SharedString, TextRun, TextStyle, Window, point, px,
 };
 use ropey::RopeSlice;
 
@@ -112,7 +116,7 @@ impl<M: InputModeKind> TextElement<M> {
         last_layout: &LastLayout,
         text_style: &TextStyle,
         window: &mut Window,
-    ) -> Option<Path<Pixels>> {
+    ) -> Option<PixelPath> {
         if !state.is_multi_line() || !state.mode.has_indent_guides() {
             return None;
         }

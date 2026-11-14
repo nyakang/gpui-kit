@@ -1,3 +1,5 @@
+#[cfg(any(feature = "gpui-fast", test))]
+use gpui::IntoElement;
 mod selection_paint;
 
 use super::state::ParagraphRows;
@@ -21,7 +23,7 @@ use std::{
 use gpui::{
     AnyTooltip, App, BorderStyle, Bounds, ClickEvent, CursorStyle, Edges, Element, ElementId,
     ForegroundExecutor, Global, GlobalElementId, Half, HighlightStyle, Hitbox, HitboxBehavior,
-    Hsla, InspectorElementId, IntoElement, LayoutId, MouseButton, MouseClickEvent, MouseDownEvent,
+    Hsla, InspectorElementId, LayoutId, MouseButton, MouseClickEvent, MouseDownEvent,
     MouseMoveEvent, MouseUpEvent, Pixels, Point, SharedString, StyleRefinement, StyledText, Task,
     TextAlign, TextLayout, TextRun, TextStyle, Window, point, px, size,
 };
@@ -1154,6 +1156,8 @@ impl Inline {
         }
     }
 }
+
+#[cfg(feature = "gpui-fast")]
 
 impl IntoElement for Inline {
     type Element = Self;
@@ -2299,7 +2303,7 @@ mod range_highlight_tests {
 /// run comes out visibly short.
 #[cfg(test)]
 pub(super) mod test_draw {
-    use gpui::{App, Context, IntoElement, Render, Styled as _, TestApp, Window, canvas, px};
+    use gpui::{App, Context, Render, Styled as _, TestApp, Window, canvas, px};
     use std::{cell::RefCell, rc::Rc};
 
     struct Probe {
@@ -2307,7 +2311,7 @@ pub(super) mod test_draw {
     }
 
     impl Render for Probe {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
             let body = self.body.take();
             canvas(
                 move |_, window, cx| {
@@ -2899,8 +2903,8 @@ mod tests {
 mod retained_layout_tests {
     use gpui::Styled as _;
     use gpui::{
-        AppContext as _, Context, Entity, IntoElement, ParentElement as _, Render, TestAppContext,
-        Window, div, px,
+        AppContext as _, Context, Entity, ParentElement as _, Render, TestAppContext, Window, div,
+        px,
     };
 
     use std::sync::{Arc, Mutex};
@@ -2915,7 +2919,7 @@ mod retained_layout_tests {
     }
 
     impl Render for Twice {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
             div()
                 .w(px(300.))
                 .child(TextView::new(&self.state))
@@ -3021,7 +3025,7 @@ mod retained_layout_tests {
     }
 
     impl Render for Once {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
             div().w(px(300.)).child(TextView::new(&self.state))
         }
     }
@@ -3146,7 +3150,7 @@ mod retained_layout_tests {
     }
 
     impl Render for Removable {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
             div()
                 .w(px(300.))
                 .children(self.state.as_ref().map(TextView::new))

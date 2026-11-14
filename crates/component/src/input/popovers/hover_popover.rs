@@ -107,6 +107,8 @@ impl Popover {
     }
 }
 
+#[cfg(feature = "gpui-fast")]
+
 impl IntoElement for Popover {
     type Element = Self;
 

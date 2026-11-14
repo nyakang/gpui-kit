@@ -681,6 +681,8 @@ impl TextView {
     }
 }
 
+#[cfg(feature = "gpui-fast")]
+
 impl IntoElement for TextView {
     type Element = Self;
 
@@ -3663,7 +3665,11 @@ mod tests {
                 let quad = window
                     .painted_quads()
                     .into_iter()
-                    .find(|quad| quad.background == head)
+                    // Native GPUI splits the square interior from the rounded edge strips.
+                    .find(|quad| {
+                        quad.background == head
+                            && quad.content_mask.bounds.top() == quad.bounds.top()
+                    })
                     .unwrap_or_else(|| panic!("{mode}: the header background quad is painted"));
                 (quad, window.scale_factor())
             });

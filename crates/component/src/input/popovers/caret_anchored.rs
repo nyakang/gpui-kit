@@ -5,10 +5,12 @@
 //! prepaint runs after the input's prepaint but before its paint; resolving
 //! the anchor there puts the popup at the current frame's caret instead of
 //! the previous frame's.
+#[cfg(feature = "gpui-fast")]
+use gpui::IntoElement;
 
 use gpui::{
     AnyElement, App, AvailableSpace, Bounds, Element, ElementId, GlobalElementId,
-    InspectorElementId, IntoElement, LayoutId, Pixels, Point, Size, Style, WeakEntity, Window, px,
+    InspectorElementId, LayoutId, Pixels, Point, Size, Style, WeakEntity, Window, px,
 };
 
 use crate::input::{EditorState, PrepaintCaretGeometry};
@@ -142,6 +144,8 @@ impl Element for CaretAnchoredPopup {
         }
     }
 }
+
+#[cfg(feature = "gpui-fast")]
 
 impl IntoElement for CaretAnchoredPopup {
     type Element = Self;

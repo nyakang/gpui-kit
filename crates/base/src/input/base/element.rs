@@ -1,3 +1,8 @@
+#[cfg(not(feature = "gpui-fast"))]
+use gpui::Path as PixelPath;
+#[cfg(feature = "gpui-fast")]
+type PixelPath = gpui::Path<gpui::Pixels>;
+
 use crate::input::{DisplayMap, FoldRange, InputExtras as _, InputModeKind, OverviewRulerLane};
 use gpui::Corners;
 use gpui::Half;
@@ -7,7 +12,7 @@ use gpui::{
 };
 use gpui::{
     HighlightStyle, Hitbox, HitboxBehavior, Hsla, InteractiveElement, IntoElement, LayoutId,
-    LongPressEvent, MouseButton, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement as _, Path,
+    LongPressEvent, MouseButton, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement as _,
     Pixels, Point, Position, ShapedLine, SharedString, Size, Style, Styled as _, TextAlign,
     TextRun, TextStyle, TouchDragEvent, TouchPhase, UnderlineStyle, Window, fill, point, px,
     relative, size,
@@ -267,6 +272,8 @@ impl<M: InputModeKind> EditorScrollbar<M> {
         Self { state }
     }
 }
+
+#[cfg(feature = "gpui-fast")]
 
 impl<M: InputModeKind> IntoElement for EditorScrollbar<M> {
     type Element = Self;
@@ -1110,7 +1117,7 @@ impl<M: InputModeKind> TextElement<M> {
         range: Range<usize>,
         last_layout: &LastLayout,
         bounds: &Bounds<Pixels>,
-    ) -> Option<Path<Pixels>> {
+    ) -> Option<PixelPath> {
         let corners = Self::layout_range_corners(&range, last_layout)?;
         let points = frame_outline_points(&corners);
         let origin = bounds.origin + point(last_layout.line_number_width, px(0.));
@@ -1184,7 +1191,7 @@ impl<M: InputModeKind> TextElement<M> {
         window: &Window,
         content_mask: Bounds<Pixels>,
         cx: &App,
-    ) -> (Vec<(Path<Pixels>, Hsla)>, Vec<(Path<Pixels>, Hsla)>) {
+    ) -> (Vec<(PixelPath, Hsla)>, Vec<(PixelPath, Hsla)>) {
         let state = self.state.read(cx);
         let mut fills = Vec::new();
         let mut frames = Vec::new();
@@ -1253,7 +1260,7 @@ impl<M: InputModeKind> TextElement<M> {
         last_layout: &LastLayout,
         bounds: &Bounds<Pixels>,
         cx: &mut App,
-    ) -> Vec<(Path<Pixels>, bool)> {
+    ) -> Vec<(PixelPath, bool)> {
         let state = self.state.read(cx);
         if !state.search_session.is_active() {
             return vec![];
@@ -1285,7 +1292,7 @@ impl<M: InputModeKind> TextElement<M> {
         last_layout: &LastLayout,
         bounds: &Bounds<Pixels>,
         cx: &mut App,
-    ) -> Option<Path<Pixels>> {
+    ) -> Option<PixelPath> {
         let state = self.state.read(cx);
         let Some(symbol_range) = state.extras.hover_symbol_range() else {
             return None;
@@ -1300,7 +1307,7 @@ impl<M: InputModeKind> TextElement<M> {
         last_layout: &LastLayout,
         bounds: &Bounds<Pixels>,
         _cx: &mut App,
-    ) -> Vec<(Path<Pixels>, Hsla)> {
+    ) -> Vec<(PixelPath, Hsla)> {
         let mut paths = vec![];
         for (range, color) in document_colors.iter() {
             if let Some(path) = Self::layout_match_range(range.clone(), last_layout, bounds) {
@@ -1317,7 +1324,7 @@ impl<M: InputModeKind> TextElement<M> {
         bounds: &mut Bounds<Pixels>,
         window: &mut Window,
         cx: &mut App,
-    ) -> Vec<Path<Pixels>> {
+    ) -> Vec<PixelPath> {
         let state = self.state.read(cx);
         if !state.has_selection_focus(window, cx) {
             return vec![];
@@ -2931,17 +2938,17 @@ pub(super) struct PrepaintState {
     cursor_scroll_offset: Point<Pixels>,
     /// row index (zero based), no wrap, same line as the cursor.
     current_row: Option<usize>,
-    selection_paths: Vec<Path<Pixels>>,
-    hover_highlight_path: Option<Path<Pixels>>,
-    search_match_paths: Vec<(Path<Pixels>, bool)>,
-    document_color_paths: Vec<(Path<Pixels>, Hsla)>,
-    range_decoration_fills: Vec<(Path<Pixels>, Hsla)>,
-    range_decoration_frames: Vec<(Path<Pixels>, Hsla)>,
+    selection_paths: Vec<PixelPath>,
+    hover_highlight_path: Option<PixelPath>,
+    search_match_paths: Vec<(PixelPath, bool)>,
+    document_color_paths: Vec<(PixelPath, Hsla)>,
+    range_decoration_fills: Vec<(PixelPath, Hsla)>,
+    range_decoration_frames: Vec<(PixelPath, Hsla)>,
     gutter_decorations: Vec<PaintQuad>,
     /// How far the gutter decoration strip pushes the line numbers right.
     line_number_offset: Pixels,
     hover_definition_hitbox: Option<Hitbox>,
-    indent_guides_path: Option<Path<Pixels>>,
+    indent_guides_path: Option<PixelPath>,
     /// The whole input, for deciding whether a long press started in it.
     hitbox: Hitbox,
     bounds: Bounds<Pixels>,
@@ -2983,6 +2990,8 @@ fn snap_caret_to_device_pixels(bounds: Bounds<Pixels>, scale_factor: f32) -> Bou
     let width = (bounds.size.width * scale_factor).round().max(px(1.)) / scale_factor;
     Bounds::new(point(x, bounds.origin.y), size(width, bounds.size.height))
 }
+
+#[cfg(feature = "gpui-fast")]
 
 impl<M: InputModeKind> IntoElement for TextElement<M> {
     type Element = Self;

@@ -1,3 +1,8 @@
+#[cfg(not(feature = "gpui-fast"))]
+use gpui::Path as PixelPath;
+#[cfg(feature = "gpui-fast")]
+type PixelPath = gpui::Path<gpui::Pixels>;
+
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -169,6 +174,8 @@ impl RoundedFrameCover {
     }
 }
 
+#[cfg(feature = "gpui-fast")]
+
 impl IntoElement for RoundedFrameCover {
     type Element = Self;
 
@@ -297,7 +304,7 @@ fn corner_notch_path(
     x_dir: f32,
     y_dir: f32,
     radius: Pixels,
-) -> Option<gpui::Path<Pixels>> {
+) -> Option<PixelPath> {
     let mut builder = gpui::PathBuilder::fill();
     builder.move_to(corner);
     builder.line_to(Point {
@@ -403,6 +410,8 @@ impl<H: ScrollbarHandle + Clone> ScrollableMask<H> {
         self
     }
 }
+
+#[cfg(feature = "gpui-fast")]
 
 impl<H: ScrollbarHandle + Clone> IntoElement for ScrollableMask<H> {
     type Element = Self;
@@ -663,7 +672,10 @@ mod tests {
         for (name, corner, x_dir, y_dir) in cases {
             let path =
                 corner_notch_path(corner, x_dir, y_dir, radius).expect("the notch tessellates");
+            #[cfg(feature = "gpui-fast")]
             let bounds = path.bounds;
+            #[cfg(not(feature = "gpui-fast"))]
+            let bounds = path.bounds();
             // Curve tessellation may inset fractionally; one pixel of slack.
             let tolerance = 1.0;
             assert!(

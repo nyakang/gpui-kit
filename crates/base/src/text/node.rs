@@ -206,6 +206,8 @@ fn custom_block_selection(
 /// cell, so a drag that starts in the cell selects only in that cell.
 struct TableCellElement(AnyElement);
 
+#[cfg(feature = "gpui-fast")]
+
 impl IntoElement for TableCellElement {
     type Element = Self;
 
@@ -281,6 +283,8 @@ struct CustomBlockElement {
     /// so has no row of its own to scroll to.
     reveal: Option<RevealAt>,
 }
+
+#[cfg(feature = "gpui-fast")]
 
 impl IntoElement for CustomBlockElement {
     type Element = Self;

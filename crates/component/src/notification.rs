@@ -646,7 +646,10 @@ impl SystemNotificationRegistry {
             return;
         };
         entries.remove(ix);
+        #[cfg(feature = "gpui-fast")]
         cx.dismiss_system_notification(&tag);
+        #[cfg(not(feature = "gpui-fast"))]
+        cx.dismiss_system_notification(&tag).detach();
     }
 
     /// Retract all of the window's system notifications whose id matches the
@@ -678,7 +681,10 @@ impl SystemNotificationRegistry {
             }
         });
         for tag in tags {
+            #[cfg(feature = "gpui-fast")]
             cx.dismiss_system_notification(&tag);
+            #[cfg(not(feature = "gpui-fast"))]
+            cx.dismiss_system_notification(&tag).detach();
         }
     }
 
@@ -688,7 +694,10 @@ impl SystemNotificationRegistry {
         }
         // Platforms usually remove a clicked notification themselves; retract
         // explicitly for the ones that keep it in the notification center.
+        #[cfg(feature = "gpui-fast")]
         cx.dismiss_system_notification(&response.tag);
+        #[cfg(not(feature = "gpui-fast"))]
+        cx.dismiss_system_notification(&response.tag).detach();
         // The prefix already proves the notification is ours, so activate even
         // when nothing is left to dispatch to: the platform can deliver a
         // response for a notification posted before the process restarted, and

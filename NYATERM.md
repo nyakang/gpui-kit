@@ -1,5 +1,18 @@
 # NyaTerm fork notes
 
+## Current upstream sync (2026-11-14)
+
+- Upstream base: `cf3e84bd367ef96678294153bece8cd7c52f0add` (`https://github.com/longbridge/gpui-kit`, `main`).
+- Previous published revision: `4add1fa8cf878583d1dee65b88cfc73e09f4190b`.
+- Preserved backup: `backup/nyaterm-20261114`; branch: `nyaterm`.
+
+Adapt the native backend to GPUI blanket IntoElement, monotone Path translation and bounds, implicit paint-layer bounds and asynchronous notification dismissal. Retain gpui-fast API guards. Move test observation outside the popup scrollbar shell and make the rounded-header regression select its edge strip after upstream quad splitting. Pin all six native Zed dependencies to 09b9329058efebd954b61a7222e87e7f4c9353e1.
+
+Windows, Rust 1.99.1: cargo test -p gpui-base -p gpui-component --lib --features gpui-component/test-support passed against local fork sources (1716 base and 818 component tests). Native consumer workspace check passed. Optional gpui-fast and macOS/Linux execution are not validated.
+
+Earlier dated sections below describe historical revisions and validation.
+
+
 ## 2026-11-13 align Touch Bar KVO-safe GPUI dependency
 
 Pin all six Zed workspace dependencies to

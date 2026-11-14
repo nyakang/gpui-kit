@@ -1,5 +1,10 @@
+#[cfg(not(feature = "gpui-fast"))]
+use gpui::Path as PixelPath;
+#[cfg(feature = "gpui-fast")]
+type PixelPath = gpui::Path<gpui::Pixels>;
+
 use gpui::{
-    AnyElement, App, Bounds, ContentMask, Entity, Hsla, IntoElement, ParentElement as _, Path,
+    AnyElement, App, Bounds, ContentMask, Entity, Hsla, IntoElement, ParentElement as _,
     PathBuilder, Pixels, Point, RenderOnce, StyleRefinement, Styled, Window, canvas, div,
     linear_color_stop, linear_gradient, point, px, size,
 };
@@ -323,7 +328,7 @@ fn ribbon(points: &[Point<Pixels>], width: Pixels) -> (Vec<Point<Pixels>>, Vec<P
 }
 
 /// A capsule filling `rect`: round caps on its short ends, a dot when square.
-pub(super) fn capsule(rect: Bounds<Pixels>) -> Option<Path<Pixels>> {
+pub(super) fn capsule(rect: Bounds<Pixels>) -> Option<PixelPath> {
     let radius = rect.size.width.min(rect.size.height) / 2.;
     let radii = point(radius, radius);
     let (left, right) = (rect.left(), rect.right());

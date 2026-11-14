@@ -8,9 +8,8 @@ use crate::{Side, Size, kbd::Kbd};
 use gpui::{
     Action, Anchor, AnyElement, App, AppContext, Bounds, Context, DismissEvent, Edges, Entity,
     EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding,
-    ParentElement, Pixels, Rems, Render, Role, ScrollHandle, SharedString,
-    StatefulInteractiveElement, Styled, WeakEntity, Window, anchored, deferred, div,
-    prelude::FluentBuilder, px, rems,
+    ParentElement, Pixels, Render, Role, ScrollHandle, SharedString, StatefulInteractiveElement,
+    Styled, WeakEntity, Window, anchored, deferred, div, prelude::FluentBuilder, px, rems,
 };
 use gpui::{ClickEvent, Half, MouseDownEvent, OwnedMenuItem, Point, Subscription};
 use gpui_base::{LayoutDirection, LogicalStyledExt as _, TestSupportExt as _};
@@ -1460,7 +1459,6 @@ impl PopupMenu {
 
         let selected = self.selected_index == Some(ix);
         const EDGE_PADDING: Pixels = px(4.);
-        const INNER_PADDING: Rems = rems(0.5);
         let is_submenu = matches!(item, PopupMenuItem::Submenu { .. });
 
         let item_height = options.layout.row_height;
@@ -1667,7 +1665,13 @@ impl PopupMenu {
                                 .child(
                                     options
                                         .layout
-                                        .size_icon(Icon::new(if LayoutDirection::global(cx).is_rtl() { IconName::ChevronLeft } else { IconName::ChevronRight }))
+                                        .size_icon(Icon::new(
+                                            if LayoutDirection::global(cx).is_rtl() {
+                                                IconName::ChevronLeft
+                                            } else {
+                                                IconName::ChevronRight
+                                            },
+                                        ))
                                         .text_color(cx.theme().muted_foreground),
                                 ),
                         ),
@@ -1817,7 +1821,6 @@ impl Render for PopupMenu {
 
         v_flex()
             .id("popup-menu")
-            .test_support()
             .role(Role::Menu)
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle)
@@ -1875,6 +1878,7 @@ impl Render for PopupMenu {
             .when(self.scrollable, |this| {
                 this.vertical_scrollbar(&self.scroll_handle)
             })
+            .test_support()
     }
 }
 

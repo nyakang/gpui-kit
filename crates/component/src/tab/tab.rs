@@ -1,13 +1,14 @@
+#[cfg(feature = "gpui-fast")]
+use gpui::{FillOptions, PathStyle};
 use std::{rc::Rc, time::Duration};
 
 use crate::animation::{Lerp, ease_in_out_cubic};
 use crate::{ActiveTheme, Icon, IconName, Selectable, Sizable, Size, StyledExt, h_flex};
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    Animation, AnimationExt as _, AnyElement, App, Background, ClickEvent, Edges, ElementId,
-    FillOptions, Hsla, InteractiveElement, IntoElement, ParentElement, PathBuilder, PathStyle,
-    Pixels, Point, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, canvas,
-    div, point, px, relative,
+    Animation, AnimationExt as _, AnyElement, App, Background, ClickEvent, Edges, ElementId, Hsla,
+    InteractiveElement, IntoElement, ParentElement, PathBuilder, Pixels, Point, RenderOnce,
+    SharedString, StatefulInteractiveElement, Styled, Window, canvas, div, point, px, relative,
 };
 use gpui_base::LogicalStyledExt as _;
 
@@ -454,8 +455,11 @@ fn folder_tab_shape(metrics: FolderTabMetrics, bg: Background) -> impl IntoEleme
             // Like Chrome, keep at least a third of the top flat on narrow tabs.
             let radius = ((bounds.size.width - curve * 2.) / 3.).clamp(px(0.), curve);
 
+            #[cfg(feature = "gpui-fast")]
             let mut path =
                 PathBuilder::fill().with_style(PathStyle::Fill(FillOptions::tolerance(0.02)));
+            #[cfg(not(feature = "gpui-fast"))]
+            let mut path = PathBuilder::fill();
             path.move_to(point(left, bottom));
             quarter_circle_to(
                 &mut path,

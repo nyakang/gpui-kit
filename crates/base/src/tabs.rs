@@ -285,6 +285,8 @@ impl TabListScope {
     }
 }
 
+#[cfg(feature = "gpui-fast")]
+
 impl IntoElement for TabListScope {
     type Element = Self;
 

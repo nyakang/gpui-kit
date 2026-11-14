@@ -237,6 +237,8 @@ impl InlineObject {
     }
 }
 
+#[cfg(feature = "gpui-fast")]
+
 impl IntoElement for InlineObject {
     type Element = Self;
     fn into_element(self) -> Self {

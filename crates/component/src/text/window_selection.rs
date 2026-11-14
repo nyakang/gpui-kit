@@ -43,6 +43,8 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "gpui-fast")]
+
     impl IntoElement for PlainSelectableText {
         type Element = Self;
 
@@ -1463,6 +1465,8 @@ mod tests {
     struct SelectionPaintProbe {
         samples: Rc<RefCell<Vec<bool>>>,
     }
+
+    #[cfg(feature = "gpui-fast")]
 
     impl IntoElement for SelectionPaintProbe {
         type Element = Self;

@@ -1,9 +1,14 @@
+#[cfg(not(feature = "gpui-fast"))]
+use gpui::Path as PixelPath;
+#[cfg(feature = "gpui-fast")]
+type PixelPath = gpui::Path<gpui::Pixels>;
+
 use gpui_base::LogicalStyledExt as _;
 use std::{rc::Rc, time::Duration};
 
 use gpui::{
     AbsoluteLength, AnyElement, App, Axis, Bounds, ClickEvent, ElementId, Hsla, ImageSource,
-    InteractiveElement as _, IntoElement, MouseButton, ObjectFit, ParentElement, Path, PathBuilder,
+    InteractiveElement as _, IntoElement, MouseButton, ObjectFit, ParentElement, PathBuilder,
     Pixels, Refineable as _, RenderOnce, ScrollHandle, SharedString,
     StatefulInteractiveElement as _, StyleRefinement, Styled, StyledImage as _, Window, black,
     canvas, div, img, linear_color_stop, linear_gradient, point, prelude::FluentBuilder as _, px,
@@ -548,7 +553,7 @@ fn upload_bar(percent: f32, radius: Pixels, color: Hsla) -> impl IntoElement {
 /// rectangle: both ends are sampled along the corner arcs. An absolutely
 /// positioned child is laid out in the card's padding box, so `bounds` already
 /// sits inside the border; only the corner radius shrinks by the border width.
-fn upload_bar_path(bounds: Bounds<Pixels>, percent: f32, radius: Pixels) -> Option<Path<Pixels>> {
+fn upload_bar_path(bounds: Bounds<Pixels>, percent: f32, radius: Pixels) -> Option<PixelPath> {
     const STEPS: usize = 6;
     let width = bounds.size.width.as_f32();
     let height = bounds.size.height.as_f32();

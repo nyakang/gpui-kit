@@ -1,8 +1,13 @@
+#[cfg(not(feature = "gpui-fast"))]
+use gpui::Path as PixelPath;
+#[cfg(feature = "gpui-fast")]
+type PixelPath = gpui::Path<gpui::Pixels>;
+
 // @reference: https://d3js.org/d3-shape/arc
 
 use std::{f32::consts::PI, fmt::Debug};
 
-use gpui::{Background, Bounds, Path, PathBuilder, Pixels, Point, Window, point, px};
+use gpui::{Background, Bounds, PathBuilder, Pixels, Point, Window, point, px};
 
 use crate::plot::{PathCache, ShapeKey};
 
@@ -87,7 +92,7 @@ impl Arc {
         point(r * a.cos(), r * a.sin())
     }
 
-    fn path<T>(&self, arc: &ArcData<T>, bounds: &Bounds<Pixels>) -> Option<Path<Pixels>> {
+    fn path<T>(&self, arc: &ArcData<T>, bounds: &Bounds<Pixels>) -> Option<PixelPath> {
         let start_angle = arc.start_angle - HALF_PI;
         let end_angle = arc.end_angle - HALF_PI;
         let da = end_angle - start_angle;
