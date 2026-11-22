@@ -728,3 +728,17 @@ NyaTerm Linux desktop and native probe integration passed using these GPUI
 sources and unchanged component sources before this pin update. The consuming
 NyaTerm workspace will check the published pins and lock together; standalone
 component and Windows/macOS acceptance are not claimed here.
+
+## 2026-11-23 align native pointer-lock GPUI revision
+
+Move all six Zed pins from `468bc1eb8e31d8f802af766a4d2d74d2d08ea46a`
+to `5591fbd2d0ef56b9469e22216b9a91d833eb8282` on the `nyaterm` branch.
+This keeps GPUI Kit and NyaTerm on one GPUI type graph while the application
+adopts native relative pointer locking. Refresh the previously stale lockfile;
+no component source, public component API or persistent format changes.
+Validation: Windows x64 `cargo check -p gpui-kit --lib` passed with Rust 1.99.1;
+all six dependency pins and the lock agree, and `git diff --check` passed.
+
+同步六处 Zed 依赖版本，使 GPUI Kit 与 NyaTerm 使用同一套 GPUI 类型，
+供应用接入原生相对鼠标捕获。更新原有过期锁文件，不修改组件代码、公共
+组件接口或持久化格式。Windows x64 下使用 Rust 1.99.1 的上述编译检查通过。
