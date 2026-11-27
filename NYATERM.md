@@ -766,3 +766,18 @@ all six dependency pins and the lock agree, and `git diff --check` passed.
 同步六处 Zed 依赖版本，使 GPUI Kit 与 NyaTerm 使用同一套 GPUI 类型，
 供应用接入原生相对鼠标捕获。更新原有过期锁文件，不修改组件代码、公共
 组件接口或持久化格式。Windows x64 下使用 Rust 1.99.1 的上述编译检查通过。
+
+## 2026-11-28 align X11 XIM recovery revision
+
+Align all Zed pins to `d5564651cf235261b2e55e82067a7cd6ab6c9c42` on `nyakang/zed` branch `nyaterm`.
+NyaTerm and GPUI Kit must share one GPUI type graph. This revision fixes XIM
+connection recovery, context ownership, input-target changes and caret reporting;
+component sources and serialization formats do not change. The Zed dependency
+passed 67 Linux platform tests, all-target/all-feature clippy, and native Xvfb
+fcitx5/IBus Rime recovery and continuous-input acceptance. Consuming NyaTerm
+workspace validation is recorded with the application dependency update.
+
+同步全部 Zed 固定版本至 `d5564651cf235261b2e55e82067a7cd6ab6c9c42`，保持 GPUI Kit 与 NyaTerm
+使用同一套 GPUI 类型。该版本修复 X11 输入法重连、输入上下文生命周期和候选框定位；
+组件源码和序列化格式不变。依赖已通过 67 项 Linux 平台测试、Clippy，以及
+Xvfb 下 fcitx5 和 IBus Rime 的重连与连续输入验证；应用集成验证随 NyaTerm 更新记录。
